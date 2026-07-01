@@ -478,77 +478,125 @@ async function fetchAllMarketData() {
 // 板块机会评分（0-100分）
 // 维度：今日涨幅(20%) + 5日动量(20%) + 20日趋势(15%) + 主力资金流入(25%) + 资金占比(20%)
 function scoreSectorOpportunity(sector, fundFlow, indexChange) {
-  let score = 50;
+  let totalScore = 50;
   const w = { today: 20, d5: 20, d20: 15, fund: 25, fundPct: 20 };
+  const breakdown = {
+    base: 50,
+    today: { value: 0, weight: w.today, label: '今日涨幅' },
+    d5: { value: 0, weight: w.d5, label: '5日动量' },
+    d20: { value: 0, weight: w.d20, label: '20日趋势' },
+    fund: { value: 0, weight: w.fund, label: '主力资金额' },
+    fundPct: { value: 0, weight: w.fundPct, label: '资金占比' },
+    bonus: { value: 0, label: '共振加分' }
+  };
 
   const todayPct = sector.changePct || 0;
   const d5Pct = sector.change5d || 0;
   const d20Pct = sector.change20d || 0;
 
-  if (todayPct > 5) score += w.today;
-  else if (todayPct > 3) score += w.today * 0.8;
-  else if (todayPct > 1) score += w.today * 0.5;
-  else if (todayPct > 0) score += w.today * 0.2;
-  else if (todayPct > -2) score -= w.today * 0.3;
-  else if (todayPct > -5) score -= w.today * 0.6;
-  else score -= w.today;
+  let delta;
+  if (todayPct > 5) delta = w.today;
+  else if (todayPct > 3) delta = w.today * 0.8;
+  else if (todayPct > 1) delta = w.today * 0.5;
+  else if (todayPct > 0) delta = w.today * 0.2;
+  else if (todayPct > -2) delta = -w.today * 0.3;
+  else if (todayPct > -5) delta = -w.today * 0.6;
+  else delta = -w.today;
+  breakdown.today.value = delta;
+  breakdown.today.raw = todayPct.toFixed(2) + '%';
+  totalScore += delta;
 
-  if (d5Pct > 10) score += w.d5;
-  else if (d5Pct > 5) score += w.d5 * 0.7;
-  else if (d5Pct > 2) score += w.d5 * 0.4;
-  else if (d5Pct > 0) score += w.d5 * 0.15;
-  else if (d5Pct > -5) score -= w.d5 * 0.3;
-  else score -= w.d5 * 0.7;
+  if (d5Pct > 10) delta = w.d5;
+  else if (d5Pct > 5) delta = w.d5 * 0.7;
+  else if (d5Pct > 2) delta = w.d5 * 0.4;
+  else if (d5Pct > 0) delta = w.d5 * 0.15;
+  else if (d5Pct > -5) delta = -w.d5 * 0.3;
+  else delta = -w.d5 * 0.7;
+  breakdown.d5.value = delta;
+  breakdown.d5.raw = d5Pct.toFixed(2) + '%';
+  totalScore += delta;
 
-  if (d20Pct > 20) score += w.d20;
-  else if (d20Pct > 10) score += w.d20 * 0.7;
-  else if (d20Pct > 5) score += w.d20 * 0.4;
-  else if (d20Pct > 0) score += w.d20 * 0.15;
-  else if (d20Pct > -10) score -= w.d20 * 0.4;
-  else score -= w.d20 * 0.8;
+  if (d20Pct > 20) delta = w.d20;
+  else if (d20Pct > 10) delta = w.d20 * 0.7;
+  else if (d20Pct > 5) delta = w.d20 * 0.4;
+  else if (d20Pct > 0) delta = w.d20 * 0.15;
+  else if (d20Pct > -10) delta = -w.d20 * 0.4;
+  else delta = -w.d20 * 0.8;
+  breakdown.d20.value = delta;
+  breakdown.d20.raw = d20Pct.toFixed(2) + '%';
+  totalScore += delta;
 
   const fund = fundFlow ? fundFlow.mainNetInflow / 100000000 : 0;
   const fundPct = fundFlow ? fundFlow.mainNetInflowPct || 0 : 0;
 
-  if (fund > 20) score += w.fund;
-  else if (fund > 10) score += w.fund * 0.75;
-  else if (fund > 5) score += w.fund * 0.5;
-  else if (fund > 0) score += w.fund * 0.2;
-  else if (fund > -10) score -= w.fund * 0.3;
-  else if (fund > -20) score -= w.fund * 0.6;
-  else score -= w.fund;
+  if (fund > 20) delta = w.fund;
+  else if (fund > 10) delta = w.fund * 0.75;
+  else if (fund > 5) delta = w.fund * 0.5;
+  else if (fund > 0) delta = w.fund * 0.2;
+  else if (fund > -10) delta = -w.fund * 0.3;
+  else if (fund > -20) delta = -w.fund * 0.6;
+  else delta = -w.fund;
+  breakdown.fund.value = delta;
+  breakdown.fund.raw = fund.toFixed(2) + '亿';
+  totalScore += delta;
 
-  if (fundPct > 1) score += w.fundPct;
-  else if (fundPct > 0.5) score += w.fundPct * 0.7;
-  else if (fundPct > 0.2) score += w.fundPct * 0.4;
-  else if (fundPct > 0) score += w.fundPct * 0.15;
-  else if (fundPct > -0.5) score -= w.fundPct * 0.3;
-  else score -= w.fundPct * 0.7;
+  if (fundPct > 1) delta = w.fundPct;
+  else if (fundPct > 0.5) delta = w.fundPct * 0.7;
+  else if (fundPct > 0.2) delta = w.fundPct * 0.4;
+  else if (fundPct > 0) delta = w.fundPct * 0.15;
+  else if (fundPct > -0.5) delta = -w.fundPct * 0.3;
+  else delta = -w.fundPct * 0.7;
+  breakdown.fundPct.value = delta;
+  breakdown.fundPct.raw = fundPct.toFixed(2) + '%';
+  totalScore += delta;
 
+  let bonus = 0;
   if (todayPct > 0 && d5Pct > 0 && fund > 0) {
-    score += 8;
+    bonus = 8;
   }
   if (todayPct < 0 && d5Pct < 0 && fund < 0) {
-    score -= 8;
+    bonus = -8;
   }
+  breakdown.bonus.value = bonus;
+  totalScore += bonus;
 
-  return Math.max(0, Math.min(100, Math.round(score)));
+  const finalScore = Math.max(0, Math.min(100, Math.round(totalScore)));
+  return {
+    score: finalScore,
+    breakdown: breakdown
+  };
 }
 
 // 综合市场情绪评分（0-100）
 function calculateMarketSentiment(data) {
-  let score = 50;
+  let totalScore = 50;
+  const breakdown = {
+    base: 50,
+    index: { value: 0, label: '大盘涨跌', detail: '' },
+    limitUp: { value: 0, label: '涨停家数', detail: '' },
+    limitDown: { value: 0, label: '跌停家数', detail: '' },
+    limitRatio: { value: 0, label: '涨跌停比', detail: '' },
+    brokenRate: { value: 0, label: '炸板率', detail: '' },
+    ladder: { value: 0, label: '连板高度', detail: '' },
+    northbound: { value: 0, label: '北向资金', detail: '' },
+    sectorBreadth: { value: 0, label: '板块涨跌比', detail: '' }
+  };
+
+  let delta;
 
   const sh = data.marketIndex ? data.marketIndex.find(i => i.code === '000001' || i.code === 'sh000001') : null;
   if (sh) {
-    if (sh.changePct > 2) score += 15;
-    else if (sh.changePct > 1) score += 10;
-    else if (sh.changePct > 0.5) score += 5;
-    else if (sh.changePct > 0) score += 2;
-    else if (sh.changePct > -0.5) score -= 3;
-    else if (sh.changePct > -1) score -= 8;
-    else if (sh.changePct > -2) score -= 12;
-    else score -= 18;
+    if (sh.changePct > 2) delta = 15;
+    else if (sh.changePct > 1) delta = 10;
+    else if (sh.changePct > 0.5) delta = 5;
+    else if (sh.changePct > 0) delta = 2;
+    else if (sh.changePct > -0.5) delta = -3;
+    else if (sh.changePct > -1) delta = -8;
+    else if (sh.changePct > -2) delta = -12;
+    else delta = -18;
+    breakdown.index.value = delta;
+    breakdown.index.detail = '上证 ' + (sh.changePct >= 0 ? '+' : '') + sh.changePct.toFixed(2) + '%';
+    totalScore += delta;
   }
 
   if (data.limitUp && data.limitDown) {
@@ -556,69 +604,99 @@ function calculateMarketSentiment(data) {
     const down = data.limitDown.total;
     const ratio = down > 0 ? up / down : 999;
 
-    if (up > 150) score += 12;
-    else if (up > 100) score += 8;
-    else if (up > 60) score += 4;
-    else if (up > 30) score += 0;
-    else if (up > 15) score -= 5;
-    else score -= 10;
+    if (up > 150) delta = 12;
+    else if (up > 100) delta = 8;
+    else if (up > 60) delta = 4;
+    else if (up > 30) delta = 0;
+    else if (up > 15) delta = -5;
+    else delta = -10;
+    breakdown.limitUp.value = delta;
+    breakdown.limitUp.detail = up + ' 家涨停';
+    totalScore += delta;
 
-    if (down > 50) score -= 12;
-    else if (down > 30) score -= 8;
-    else if (down > 15) score -= 4;
-    else if (down > 5) score -= 1;
-    else score += 2;
+    if (down > 50) delta = -12;
+    else if (down > 30) delta = -8;
+    else if (down > 15) delta = -4;
+    else if (down > 5) delta = -1;
+    else delta = 2;
+    breakdown.limitDown.value = delta;
+    breakdown.limitDown.detail = down + ' 家跌停';
+    totalScore += delta;
 
-    if (ratio > 10) score += 6;
-    else if (ratio > 5) score += 3;
-    else if (ratio > 2) score += 1;
-    else if (ratio < 0.5) score -= 5;
-    else if (ratio < 0.3) score -= 10;
+    if (ratio > 10) delta = 6;
+    else if (ratio > 5) delta = 3;
+    else if (ratio > 2) delta = 1;
+    else if (ratio < 0.5) delta = -5;
+    else if (ratio < 0.3) delta = -10;
+    else delta = 0;
+    breakdown.limitRatio.value = delta;
+    breakdown.limitRatio.detail = '比 ' + (ratio > 100 ? '∞' : ratio.toFixed(1)) + ':1';
+    totalScore += delta;
   }
 
   if (data.brokenLimit && data.limitUp) {
     const total = data.limitUp.total + data.brokenLimit.total;
     if (total > 0) {
       const brokenRate = data.brokenLimit.total / total * 100;
-      if (brokenRate > 50) score -= 10;
-      else if (brokenRate > 35) score -= 6;
-      else if (brokenRate > 20) score -= 2;
-      else if (brokenRate < 10) score += 4;
+      if (brokenRate > 50) delta = -10;
+      else if (brokenRate > 35) delta = -6;
+      else if (brokenRate > 20) delta = -2;
+      else if (brokenRate < 10) delta = 4;
+      else delta = 0;
+      breakdown.brokenRate.value = delta;
+      breakdown.brokenRate.detail = '炸板率 ' + brokenRate.toFixed(1) + '%';
+      totalScore += delta;
     }
   }
 
   if (data.limitLadder) {
-    if (data.limitLadder.maxHeight >= 7) score += 8;
-    else if (data.limitLadder.maxHeight >= 5) score += 5;
-    else if (data.limitLadder.maxHeight >= 3) score += 2;
-    else if (data.limitLadder.maxHeight <= 1) score -= 3;
+    const h = data.limitLadder.maxHeight;
+    if (h >= 7) delta = 8;
+    else if (h >= 5) delta = 5;
+    else if (h >= 3) delta = 2;
+    else if (h <= 1) delta = -3;
+    else delta = 0;
+    breakdown.ladder.value = delta;
+    breakdown.ladder.detail = '最高 ' + h + ' 连板';
+    totalScore += delta;
   }
 
   if (data.northbound && data.northbound.latest) {
     const nb = data.northbound.latest.total;
-    if (nb > 100) score += 10;
-    else if (nb > 50) score += 6;
-    else if (nb > 20) score += 3;
-    else if (nb > 0) score += 1;
-    else if (nb > -30) score -= 3;
-    else if (nb > -80) score -= 7;
-    else score -= 12;
+    if (nb > 100) delta = 10;
+    else if (nb > 50) delta = 6;
+    else if (nb > 20) delta = 3;
+    else if (nb > 0) delta = 1;
+    else if (nb > -30) delta = -3;
+    else if (nb > -80) delta = -7;
+    else delta = -12;
+    breakdown.northbound.value = delta;
+    breakdown.northbound.detail = (nb >= 0 ? '+' : '') + nb.toFixed(0) + ' 亿';
+    totalScore += delta;
   }
 
   if (data.sectorRank && data.sectorRank.length > 0) {
     const sorted = [...data.sectorRank].sort((a, b) => b.changePct - a.changePct);
     const upCount = sorted.filter(s => s.changePct > 0).length;
-    const downCount = sorted.filter(s => s.changePct < 0).length;
-    const upRatio = upCount / sorted.length;
+    const total = sorted.length;
+    const upRatio = upCount / total;
 
-    if (upRatio > 0.8) score += 6;
-    else if (upRatio > 0.6) score += 3;
-    else if (upRatio > 0.5) score += 1;
-    else if (upRatio < 0.2) score -= 6;
-    else if (upRatio < 0.3) score -= 3;
+    if (upRatio > 0.8) delta = 6;
+    else if (upRatio > 0.6) delta = 3;
+    else if (upRatio > 0.5) delta = 1;
+    else if (upRatio < 0.2) delta = -6;
+    else if (upRatio < 0.3) delta = -3;
+    else delta = 0;
+    breakdown.sectorBreadth.value = delta;
+    breakdown.sectorBreadth.detail = upCount + '/' + total + ' 上涨';
+    totalScore += delta;
   }
 
-  return Math.max(0, Math.min(100, Math.round(score)));
+  const finalScore = Math.max(0, Math.min(100, Math.round(totalScore)));
+  return {
+    score: finalScore,
+    breakdown: breakdown
+  };
 }
 
 // 情绪等级判断
@@ -687,11 +765,15 @@ function generateTradingAdvice(data, sentimentScore) {
     const fundMap = {};
     data.sectorFundFlow.forEach(s => { fundMap[s.code] = s; });
 
-    const scored = data.sectorRankHistory.map(s => ({
-      ...s,
-      score: scoreSectorOpportunity(s, fundMap[s.code]),
-      fund: fundMap[s.code]
-    }));
+    const scored = data.sectorRankHistory.map(s => {
+      const result = scoreSectorOpportunity(s, fundMap[s.code]);
+      return {
+        ...s,
+        score: result.score,
+        scoreBreakdown: result.breakdown,
+        fund: fundMap[s.code]
+      };
+    });
 
     scored.sort((a, b) => b.score - a.score);
 
@@ -701,6 +783,7 @@ function generateTradingAdvice(data, sentimentScore) {
     advice.focus = topSectors.map(s => ({
       name: s.name,
       score: s.score,
+      scoreBreakdown: s.scoreBreakdown,
       reason: s.fund && s.fund.mainNetInflow > 0
         ? `今日${formatPct(s.changePct)} + 主力净流入${(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
         : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}趋势向上`
@@ -709,6 +792,7 @@ function generateTradingAdvice(data, sentimentScore) {
     advice.avoid = bottomSectors.map(s => ({
       name: s.name,
       score: s.score,
+      scoreBreakdown: s.scoreBreakdown,
       reason: s.fund && s.fund.mainNetInflow < 0
         ? `今日${formatPct(s.changePct)} + 主力净流出${Math.abs(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
         : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}趋势向下`
@@ -718,6 +802,7 @@ function generateTradingAdvice(data, sentimentScore) {
       advice.focus = scored.slice(0, 3).map(s => ({
         name: s.name,
         score: s.score,
+        scoreBreakdown: s.scoreBreakdown,
         reason: s.fund && s.fund.mainNetInflow > 0
           ? `今日${formatPct(s.changePct)} + 主力净流入${(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
           : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}`
@@ -727,6 +812,7 @@ function generateTradingAdvice(data, sentimentScore) {
       advice.avoid = scored.slice(-3).reverse().map(s => ({
         name: s.name,
         score: s.score,
+        scoreBreakdown: s.scoreBreakdown,
         reason: s.fund && s.fund.mainNetInflow < 0
           ? `今日${formatPct(s.changePct)} + 主力净流出${Math.abs(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
           : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}`
@@ -836,7 +922,9 @@ async function fetchAllMarketDataWithAnalysis() {
   const data = await fetchAllMarketData();
 
   data.analysis = {};
-  data.analysis.sentimentScore = calculateMarketSentiment(data);
+  const sentimentResult = calculateMarketSentiment(data);
+  data.analysis.sentimentScore = sentimentResult.score;
+  data.analysis.sentimentBreakdown = sentimentResult.breakdown;
   data.analysis.sentiment = sentimentLevel(data.analysis.sentimentScore);
   data.analysis.tradingAdvice = generateTradingAdvice(data, data.analysis.sentimentScore);
   data.analysis.watchlist = generateTomorrowWatchlist(data);
@@ -845,10 +933,14 @@ async function fetchAllMarketDataWithAnalysis() {
   if (data.sectorRankHistory && data.sectorFundFlow) {
     const fundMap = {};
     data.sectorFundFlow.forEach(s => { fundMap[s.code] = s; });
-    data.analysis.scoredSectors = data.sectorRankHistory.map(s => ({
-      ...s,
-      score: scoreSectorOpportunity(s, fundMap[s.code])
-    })).sort((a, b) => b.score - a.score);
+    data.analysis.scoredSectors = data.sectorRankHistory.map(s => {
+      const result = scoreSectorOpportunity(s, fundMap[s.code]);
+      return {
+        ...s,
+        score: result.score,
+        scoreBreakdown: result.breakdown
+      };
+    }).sort((a, b) => b.score - a.score);
   }
 
   return data;

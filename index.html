@@ -541,6 +541,158 @@
     .neutral { color: var(--accent); }
     .warn { color: var(--warn); }
 
+    /* ===== Tooltip ===== */
+    .has-tip {
+      position: relative;
+      cursor: help;
+      border-bottom: 1px dashed rgba(255,255,255,0.2);
+    }
+    .has-tip:hover {
+      border-bottom-color: var(--accent);
+    }
+
+    .tooltip {
+      position: absolute;
+      z-index: 1000;
+      min-width: 260px;
+      max-width: 360px;
+      background: rgba(15, 20, 29, 0.97);
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(8px);
+      transition: opacity 0.15s, transform 0.15s, visibility 0.15s;
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+    }
+    .tooltip.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .tooltip-title {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .tooltip-label {
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .tooltip-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--bg-soft);
+      border-radius: 2px;
+      margin: 0 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .tooltip-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    .tooltip-bar-fill.positive { background: var(--up); }
+    .tooltip-bar-fill.negative { background: var(--down); }
+
+    .tooltip-value {
+      font-weight: 600;
+      font-size: 12px;
+      min-width: 50px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .tooltip-value.positive { color: var(--up); }
+    .tooltip-value.negative { color: var(--down); }
+
+    .tooltip-detail {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: right;
+      margin-top: 2px;
+    }
+
+    .tooltip-total {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .tooltip-total-val {
+      font-size: 16px;
+    }
+    .tooltip-total-val.up { color: var(--up); }
+    .tooltip-total-val.down { color: var(--down); }
+    .tooltip-total-val.neutral { color: var(--accent); }
+
+    .tooltip-note {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .action-tip-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .action-tip-item {
+      display: flex;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .action-tip-item:last-child { border-bottom: none; }
+    .action-tip-step {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-bg);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .action-tip-text {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .action-tip-text strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
     /* ===== 标签页 ===== */
     .tabs {
       display: flex;
@@ -655,22 +807,22 @@
       <div class="hero-card" id="hero-card">
         <div class="hero-top">
           <div class="hero-action">
-            <div class="hero-label">今日操作建议</div>
-            <div class="hero-action-text neutral" id="hero-action">--</div>
+            <div class="hero-label">今日操作建议 <span style="font-size:10px;color:var(--text-muted);">（悬浮查看决策链）</span></div>
+            <div class="hero-action-text neutral has-tip" id="hero-action" data-tip-type="action">--</div>
             <div class="hero-sub" id="hero-sub">正在分析市场数据...</div>
           </div>
           <div class="hero-stats">
             <div>
               <div class="hero-stat-label">建议仓位</div>
-              <div class="hero-stat-value" id="hero-position">--</div>
+              <div class="hero-stat-value has-tip" id="hero-position" data-tip-type="position">--</div>
             </div>
             <div>
               <div class="hero-stat-label">风险等级</div>
-              <div class="hero-stat-value" id="hero-risk">--</div>
+              <div class="hero-stat-value has-tip" id="hero-risk" data-tip-type="risk">--</div>
             </div>
             <div>
               <div class="hero-stat-label">情绪等级</div>
-              <div class="hero-stat-value" id="hero-sentiment-level">--</div>
+              <div class="hero-stat-value has-tip" id="hero-sentiment-level" data-tip-type="sentiment">--</div>
             </div>
           </div>
         </div>
@@ -680,10 +832,10 @@
       </div>
 
       <div class="card">
-        <div class="card-title"><span class="icon">🌡️</span> 市场情绪温度计</div>
-        <div class="sentiment-score neutral" id="sentiment-score">--</div>
+        <div class="card-title"><span class="icon">🌡️</span> 市场情绪温度计 <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">（悬浮查看得分构成）</span></div>
+        <div class="sentiment-score neutral has-tip" id="sentiment-score" data-tip-type="sentimentBreakdown">--</div>
         <div class="sentiment-label" id="sentiment-label">--</div>
-        <div class="sentiment-gauge" style="margin-top: 20px;">
+        <div class="sentiment-gauge has-tip" style="margin-top: 20px;" data-tip-type="sentimentBreakdown">
           <div class="gauge-bar">
             <div class="gauge-pointer" id="gauge-pointer" style="left: 50%;"></div>
           </div>

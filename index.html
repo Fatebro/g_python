@@ -862,8 +862,10 @@
     <!-- 标签页 -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="strategy">📈 今日策略</button>
+      <button class="tab-btn" data-tab="money">💰 赚钱效应</button>
       <button class="tab-btn" data-tab="watchlist">👀 明日关注</button>
       <button class="tab-btn" data-tab="risk">⚠️ 风险预警</button>
+      <button class="tab-btn" data-tab="sector">🏭 板块龙头</button>
       <button class="tab-btn" data-tab="report">📝 完整报告</button>
     </div>
 
@@ -914,14 +916,94 @@
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">🔥</span> 热门板块龙头</div>
+        <div class="stock-list" id="hot-sector-leaders">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 赚钱效应 -->
+    <div class="tab-panel" id="panel-money">
+      <div class="grid-3" style="margin-bottom:20px;">
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">赚钱效应指数</div>
+          <div class="sentiment-score neutral" id="money-effect-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="money-effect-desc">--</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">市场宽度</div>
+          <div class="sentiment-score neutral" id="breadth-ratio" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="breadth-signal">--</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">资金热度</div>
+          <div class="sentiment-score neutral" id="fund-heat-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="fund-heat-desc">--</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">📊</span> 涨跌数据</div>
+          <div class="market-grid" id="money-stats" style="grid-template-columns:repeat(3,1fr);">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🪜</span> 连板梯队</div>
+          <div id="ladder-container">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">🎨</span> 风格轮动</div>
+        <div id="style-rotation">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
     </div>
 
     <!-- 风险预警 -->
     <div class="tab-panel" id="panel-risk">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">⚠️</span> 综合风险评分</div>
+          <div style="text-align:center;padding:16px 0;">
+            <div class="sentiment-score neutral" id="risk-total-score" style="font-size:36px;">--</div>
+            <div class="sentiment-label" id="risk-level">--</div>
+            <div style="margin-top:8px;font-size:13px;color:var(--text-dim);" id="risk-advice">--</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">📋</span> 风险信号清单</div>
+          <div class="risk-list" id="risk-list-detail">
+            <div class="empty-tip">暂无风险信号</div>
+          </div>
+        </div>
+      </div>
       <div class="card">
-        <div class="card-title"><span class="icon">⚠️</span> 风险信号</div>
+        <div class="card-title"><span class="icon">⚠️</span> 重点风险提示</div>
         <div class="risk-list" id="risk-list">
           <div class="empty-tip">暂无重大风险，市场运行平稳</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 板块龙头 -->
+    <div class="tab-panel" id="panel-sector">
+      <div class="card">
+        <div class="card-title"><span class="icon">🏭</span> 热门板块及龙头股</div>
+        <div id="sector-leaders-full">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">💪</span> 连板天梯</div>
+        <div id="ladder-full">
+          <div class="empty-tip">加载中...</div>
         </div>
       </div>
     </div>

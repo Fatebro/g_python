@@ -357,88 +357,198 @@ function renderRisks(risks) {
   ).join('');
 }
 
+function renderMoneyEffect(analysis) {
+  const me = analysis.moneyEffect;
+  const mb = analysis.marketBreadth;
+  const fh = analysis.fundHeat;
+
+  const scoreEl = $('money-effect-score');
+  scoreEl.textContent = me.profitEffectScore;
+  scoreEl.className = 'sentiment-score ' + (me.profitEffectScore >= 60 ? 'up' : me.profitEffectScore >= 40 ? 'neutral' : 'down');
+  $('money-effect-desc').textContent = me.description;
+
+  $('breadth-ratio').textContent = mb.advanceDeclineRatio.toFixed(2) + ':1';
+  $('breadth-ratio').className = 'sentiment-score ' + (mb.advanceDeclineRatio > 2 ? 'up' : mb.advanceDeclineRatio < 0.5 ? 'down' : 'neutral');
+  $('breadth-signal').textContent = mb.signal.replace(/[^\u4e00-\u9fa5，。、]/g, '').slice(0, 12);
+
+  $('fund-heat-score').textContent = fh.fundHeatScore;
+  $('fund-heat-score').className = 'sentiment-score ' + (fh.fundHeatScore >= 60 ? 'up' : fh.fundHeatScore >= 45 ? 'neutral' : 'down');
+  $('fund-heat-desc').textContent = fh.description;
+
+  const stats = [
+    { name: '上涨板块', value: me.upCount + ' 个', cls: 'up' },
+    { name: '下跌板块', value: me.downCount + ' 个', cls: 'down' },
+    { name: '涨停', value: me.limitUpCount + ' 家', cls: 'up' },
+    { name: '跌停', value: me.limitDownCount + ' 家', cls: 'down' },
+    { name: '炸板', value: me.brokenLimitCount + ' 家', cls: 'warn' },
+    { name: '炸板率', value: me.brokenLimitRate.toFixed(1) + '%', cls: me.brokenLimitRate > 35 ? 'down' : 'up' }
+  ];
+  $('money-stats').innerHTML = stats.map(s =>
+    `<div class="market-item">
+      <div class="market-name">${s.name}</div>
+      <div class="market-price ${s.cls}">${s.value}</div>
+    </div>`
+  ).join('');
+}
+
+function renderLadder(analysis) {
+  const ladder = analysis.deepLadder;
+  if (!ladder || !ladder.ladder || !ladder.ladder.length) {
+    $('ladder-container').innerHTML = '<div class="empty-tip">暂无连板数据</div>';
+    return;
+  }
+  const html = ladder.ladder.map(l => {
+    const stocks = l.stocks.map(s => s.name).join('、');
+    return `
+      <div style="padding:10px 0;border-bottom:1px dashed var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:600;font-size:14px;"><span style="color:var(--up);">${l.height}板</span> × ${l.count}家</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">${stocks || '-'}</div>
+      </div>
+    `;
+  }).join('');
+  $('ladder-container').innerHTML = html;
+}
+
+function renderStyleRotation(analysis) {
+  const sr = analysis.styleRotation;
+  if (!sr || !sr.styles || !sr.styles.length) {
+    $('style-rotation').innerHTML = '<div class="empty-tip">暂无风格数据</div>';
+    return;
+  }
+  const maxScore = Math.max(...sr.styles.map(s => s.avgScore), 1);
+  const html = sr.styles.map((s, i) => {
+    const pct = (s.avgScore / maxScore * 100).toFixed(0);
+    const isTop = i === 0;
+    return `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:13px;font-weight:${isTop ? 600 : 400};color:${isTop ? 'var(--up)' : 'var(--text)'};">${i + 1}. ${s.name}</span>
+          <span style="font-size:13px;color:var(--text-dim);">强度分 ${s.avgScore}</span>
+        </div>
+        <div style="height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${isTop ? 'var(--up)' : 'var(--accent)'};border-radius:4px;transition:width 0.5s;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  $('style-rotation').innerHTML = html + `<div style="margin-top:8px;font-size:13px;color:var(--text-dim);text-align:center;">${sr.conclusion || ''}</div>`;
+}
+
+function renderComprehensiveRisk(analysis) {
+  const risk = analysis.comprehensiveRisk;
+  if (!risk) return;
+
+  $('risk-total-score').textContent = risk.totalScore;
+  $('risk-total-score').className = 'sentiment-score ' + (risk.totalScore >= 60 ? 'up' : risk.totalScore >= 40 ? 'warn' : 'neutral');
+  $('risk-level').textContent = '风险等级：' + risk.level;
+  $('risk-advice').textContent = risk.advice;
+
+  if (risk.risks && risk.risks.length) {
+    $('risk-list-detail').innerHTML = risk.risks.map(r =>
+      `<div class="risk-item ${r.level}">
+        <div class="risk-title" style="font-size:12px;">
+          [${r.category}] ${r.name}
+        </div>
+        <div class="risk-desc">${r.desc}</div>
+      </div>`
+    ).join('');
+  }
+}
+
+function renderSectorLeadersFull(analysis) {
+  const leaders = analysis.sectorLeaders;
+  if (!leaders || !leaders.length) {
+    $('sector-leaders-full').innerHTML = '<div class="empty-tip">暂无板块龙头数据</div>';
+    return;
+  }
+  const html = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left;padding:10px 8px;color:var(--text-dim);font-weight:500;">板块</th>
+        <th style="text-align:center;padding:10px 8px;color:var(--text-dim);font-weight:500;">涨停数</th>
+        <th style="text-align:left;padding:10px 8px;color:var(--text-dim);font-weight:500;">龙头股</th>
+        <th style="text-align:center;padding:10px 8px;color:var(--text-dim);font-weight:500;">连板</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${leaders.map(l => `
+        <tr style="border-bottom:1px dashed var(--border);">
+          <td style="padding:10px 8px;font-weight:500;">${l.industry}</td>
+          <td style="text-align:center;padding:10px 8px;color:var(--up);">${l.stockCount}</td>
+          <td style="padding:10px 8px;"><span style="color:var(--up);font-weight:500;">${l.leader}</span> <span style="color:var(--text-muted);font-size:11px;">${l.leaderCode}</span></td>
+          <td style="text-align:center;padding:10px 8px;"><span class="stock-tag">${l.leaderDays}板</span></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`;
+  $('sector-leaders-full').innerHTML = html;
+}
+
+function renderLadderFull(analysis) {
+  const ladder = analysis.deepLadder;
+  if (!ladder || !ladder.ladder || !ladder.ladder.length) {
+    $('ladder-full').innerHTML = '<div class="empty-tip">暂无连板数据</div>';
+    return;
+  }
+  const html = ladder.ladder.map(l => {
+    const stocks = (l.stocks || []).map(s =>
+      `<span style="display:inline-block;padding:4px 10px;margin:3px;background:var(--up-bg);color:var(--up);border-radius:4px;font-size:12px;">${s.name}<em style="font-style:normal;color:var(--text-muted);margin-left:4px;font-size:10px;">${s.code}</em></span>`
+    ).join('');
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="display:inline-block;padding:4px 12px;background:var(--up);color:#fff;border-radius:4px;font-weight:600;font-size:13px;">${l.height}板</span>
+          <span style="color:var(--text-dim);font-size:12px;">${l.count} 家</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">${stocks || '<span style="color:var(--text-muted);">暂无</span>'}</div>
+      </div>
+    `;
+  }).join('');
+  $('ladder-full').innerHTML = html;
+}
+
+function renderWatchlistFull(watchlist) {
+  const strong = watchlist.strongStocks || [];
+  $('strong-stocks').innerHTML = strong.length ? strong.map(s =>
+    `<div class="stock-item">
+      <span class="stock-tag">${s.days}连板</span>
+      <div class="stock-name">${s.name}<em>${s.code}</em></div>
+      <div class="stock-reason">${s.industry || ''}</div>
+    </div>`
+  ).join('') : '<div class="empty-tip">暂无连板个股</div>';
+
+  const breakouts = watchlist.breakouts || [];
+  $('breakout-stocks').innerHTML = breakouts.length ? breakouts.map(s =>
+    `<div class="stock-item">
+      <span class="stock-tag">首板</span>
+      <div class="stock-name">${s.name}<em>${s.code}</em></div>
+      <div class="stock-reason">${s.industry || ''} · 换手${(s.turnoverRate||0).toFixed(1)}%</div>
+    </div>`
+  ).join('') : '<div class="empty-tip">暂无首板个股</div>';
+
+  const angels = watchlist.fallenAngels || [];
+  $('fallen-angels').innerHTML = angels.length ? angels.map(s =>
+    `<div class="stock-item">
+      <span class="stock-tag" style="background:var(--info-bg);color:var(--info);">潜伏</span>
+      <div class="stock-name">${s.name}<em>${s.code}</em></div>
+      <div class="stock-reason">流入${s.inflow}亿 · ${fmtPct(s.changePct)}</div>
+    </div>`
+  ).join('') : '<div class="empty-tip">暂无明显资金潜伏个股</div>';
+
+  const sectorLeaders = watchlist.sectorLeaders || [];
+  $('hot-sector-leaders').innerHTML = sectorLeaders.length ? sectorLeaders.map(s =>
+    `<div class="stock-item">
+      <span class="stock-tag" style="background:var(--warn-bg);color:var(--warn);">${s.stockCount}家</span>
+      <div class="stock-name">${s.leader}<em>${s.industry}</em></div>
+      <div class="stock-reason">${s.leaderDays}连板 · 板块龙头</div>
+    </div>`
+  ).join('') : '<div class="empty-tip">暂无热门板块龙头</div>';
+}
+
 function generateDecisionReport(data) {
-  const lines = [];
-  const analysis = data.analysis;
-  const advice = analysis.tradingAdvice;
-
-  lines.push(`# A股决策助手 · 每日策略报告`);
-  lines.push('');
-  lines.push(`**日期：** ${new Date().toLocaleDateString('zh-CN')}`);
-  lines.push(`**情绪评分：** ${analysis.sentimentScore} / 100（${analysis.sentiment.level}）`);
-  lines.push(`**操作建议：** ${advice.action}`);
-  lines.push(`**建议仓位：** ${advice.position}`);
-  lines.push(`**风险等级：** ${advice.riskLevel}`);
-  lines.push('');
-
-  lines.push(`## 一、核心判断`);
-  advice.reasons.forEach((r, i) => {
-    lines.push(`${i + 1}. ${r}`);
-  });
-  lines.push('');
-
-  lines.push(`## 二、重点关注板块`);
-  if (advice.focus && advice.focus.length) {
-    advice.focus.forEach((s, i) => {
-      lines.push(`${i + 1}. **${s.name}**（机会评分：${s.score}分）— ${s.reason}`);
-    });
-  } else {
-    lines.push('暂无明确推荐板块。');
-  }
-  lines.push('');
-
-  lines.push(`## 三、建议回避板块`);
-  if (advice.avoid && advice.avoid.length) {
-    advice.avoid.forEach((s, i) => {
-      lines.push(`${i + 1}. **${s.name}**（风险评分：${s.score}分）— ${s.reason}`);
-    });
-  } else {
-    lines.push('暂无明确回避板块。');
-  }
-  lines.push('');
-
-  lines.push(`## 四、明日关注个股`);
-  const wl = analysis.watchlist;
-  if (wl.strongStocks && wl.strongStocks.length) {
-    lines.push('');
-    lines.push('**强势连板股：**');
-    wl.strongStocks.forEach(s => {
-      lines.push(`- ${s.name}（${s.code}）${s.days}连板 · ${s.industry || ''} — ${s.reason}`);
-    });
-  }
-  if (wl.breakouts && wl.breakouts.length) {
-    lines.push('');
-    lines.push('**首板突破股：**');
-    wl.breakouts.forEach(s => {
-      lines.push(`- ${s.name}（${s.code}）首板 · ${s.industry || ''} — ${s.reason}`);
-    });
-  }
-  if (wl.fallenAngels && wl.fallenAngels.length) {
-    lines.push('');
-    lines.push('**资金潜伏股：**');
-    wl.fallenAngels.forEach(s => {
-      lines.push(`- ${s.name}（${s.code}）流入${s.inflow}亿 · ${fmtPct(s.changePct)} — ${s.reason}`);
-    });
-  }
-  lines.push('');
-
-  lines.push(`## 五、风险预警`);
-  if (analysis.risks && analysis.risks.length) {
-    analysis.risks.forEach(r => {
-      lines.push(`- **[${r.level === 'high' ? '高风险' : '中等风险'}] ${r.title}：** ${r.desc}`);
-    });
-  } else {
-    lines.push('暂无重大风险，市场运行平稳。');
-  }
-  lines.push('');
-
-  lines.push(`## 六、操作纪律`);
-  lines.push(`1. 严格执行仓位管理，不满仓、不空仓。`);
-  lines.push(`2. 聚焦主线板块，避免在弱势板块中抄底。`);
-  lines.push(`3. 设置止损止盈，不恋战、不扛单。`);
-  lines.push(`4. 以上分析基于当日数据生成，仅供参考，不构成投资建议。`);
-
-  return lines.join('\n');
+  return data.analysis.fullReport || '';
 }
 
 function renderTextReport(data) {
@@ -474,7 +584,14 @@ async function loadData() {
     renderAvoidSectors(data.analysis.tradingAdvice);
     renderAdviceReasons(data.analysis.tradingAdvice);
     renderWatchlist(data.analysis.watchlist);
+    renderWatchlistFull(data.analysis.watchlist);
     renderRisks(data.analysis.risks);
+    renderMoneyEffect(data.analysis);
+    renderLadder(data.analysis);
+    renderStyleRotation(data.analysis);
+    renderComprehensiveRisk(data.analysis);
+    renderSectorLeadersFull(data.analysis);
+    renderLadderFull(data.analysis);
     renderTextReport(data);
 
     const now = new Date();

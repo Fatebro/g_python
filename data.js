@@ -473,6 +473,387 @@ async function fetchAllMarketData() {
   return result;
 }
 
+// ===== 13. 智能分析引擎 =====
+
+// 板块机会评分（0-100分）
+// 维度：今日涨幅(20%) + 5日动量(20%) + 20日趋势(15%) + 主力资金流入(25%) + 资金占比(20%)
+function scoreSectorOpportunity(sector, fundFlow, indexChange) {
+  let score = 50;
+  const w = { today: 20, d5: 20, d20: 15, fund: 25, fundPct: 20 };
+
+  const todayPct = sector.changePct || 0;
+  const d5Pct = sector.change5d || 0;
+  const d20Pct = sector.change20d || 0;
+
+  if (todayPct > 5) score += w.today;
+  else if (todayPct > 3) score += w.today * 0.8;
+  else if (todayPct > 1) score += w.today * 0.5;
+  else if (todayPct > 0) score += w.today * 0.2;
+  else if (todayPct > -2) score -= w.today * 0.3;
+  else if (todayPct > -5) score -= w.today * 0.6;
+  else score -= w.today;
+
+  if (d5Pct > 10) score += w.d5;
+  else if (d5Pct > 5) score += w.d5 * 0.7;
+  else if (d5Pct > 2) score += w.d5 * 0.4;
+  else if (d5Pct > 0) score += w.d5 * 0.15;
+  else if (d5Pct > -5) score -= w.d5 * 0.3;
+  else score -= w.d5 * 0.7;
+
+  if (d20Pct > 20) score += w.d20;
+  else if (d20Pct > 10) score += w.d20 * 0.7;
+  else if (d20Pct > 5) score += w.d20 * 0.4;
+  else if (d20Pct > 0) score += w.d20 * 0.15;
+  else if (d20Pct > -10) score -= w.d20 * 0.4;
+  else score -= w.d20 * 0.8;
+
+  const fund = fundFlow ? fundFlow.mainNetInflow / 100000000 : 0;
+  const fundPct = fundFlow ? fundFlow.mainNetInflowPct || 0 : 0;
+
+  if (fund > 20) score += w.fund;
+  else if (fund > 10) score += w.fund * 0.75;
+  else if (fund > 5) score += w.fund * 0.5;
+  else if (fund > 0) score += w.fund * 0.2;
+  else if (fund > -10) score -= w.fund * 0.3;
+  else if (fund > -20) score -= w.fund * 0.6;
+  else score -= w.fund;
+
+  if (fundPct > 1) score += w.fundPct;
+  else if (fundPct > 0.5) score += w.fundPct * 0.7;
+  else if (fundPct > 0.2) score += w.fundPct * 0.4;
+  else if (fundPct > 0) score += w.fundPct * 0.15;
+  else if (fundPct > -0.5) score -= w.fundPct * 0.3;
+  else score -= w.fundPct * 0.7;
+
+  if (todayPct > 0 && d5Pct > 0 && fund > 0) {
+    score += 8;
+  }
+  if (todayPct < 0 && d5Pct < 0 && fund < 0) {
+    score -= 8;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+// 综合市场情绪评分（0-100）
+function calculateMarketSentiment(data) {
+  let score = 50;
+
+  const sh = data.marketIndex ? data.marketIndex.find(i => i.code === '000001' || i.code === 'sh000001') : null;
+  if (sh) {
+    if (sh.changePct > 2) score += 15;
+    else if (sh.changePct > 1) score += 10;
+    else if (sh.changePct > 0.5) score += 5;
+    else if (sh.changePct > 0) score += 2;
+    else if (sh.changePct > -0.5) score -= 3;
+    else if (sh.changePct > -1) score -= 8;
+    else if (sh.changePct > -2) score -= 12;
+    else score -= 18;
+  }
+
+  if (data.limitUp && data.limitDown) {
+    const up = data.limitUp.total;
+    const down = data.limitDown.total;
+    const ratio = down > 0 ? up / down : 999;
+
+    if (up > 150) score += 12;
+    else if (up > 100) score += 8;
+    else if (up > 60) score += 4;
+    else if (up > 30) score += 0;
+    else if (up > 15) score -= 5;
+    else score -= 10;
+
+    if (down > 50) score -= 12;
+    else if (down > 30) score -= 8;
+    else if (down > 15) score -= 4;
+    else if (down > 5) score -= 1;
+    else score += 2;
+
+    if (ratio > 10) score += 6;
+    else if (ratio > 5) score += 3;
+    else if (ratio > 2) score += 1;
+    else if (ratio < 0.5) score -= 5;
+    else if (ratio < 0.3) score -= 10;
+  }
+
+  if (data.brokenLimit && data.limitUp) {
+    const total = data.limitUp.total + data.brokenLimit.total;
+    if (total > 0) {
+      const brokenRate = data.brokenLimit.total / total * 100;
+      if (brokenRate > 50) score -= 10;
+      else if (brokenRate > 35) score -= 6;
+      else if (brokenRate > 20) score -= 2;
+      else if (brokenRate < 10) score += 4;
+    }
+  }
+
+  if (data.limitLadder) {
+    if (data.limitLadder.maxHeight >= 7) score += 8;
+    else if (data.limitLadder.maxHeight >= 5) score += 5;
+    else if (data.limitLadder.maxHeight >= 3) score += 2;
+    else if (data.limitLadder.maxHeight <= 1) score -= 3;
+  }
+
+  if (data.northbound && data.northbound.latest) {
+    const nb = data.northbound.latest.total;
+    if (nb > 100) score += 10;
+    else if (nb > 50) score += 6;
+    else if (nb > 20) score += 3;
+    else if (nb > 0) score += 1;
+    else if (nb > -30) score -= 3;
+    else if (nb > -80) score -= 7;
+    else score -= 12;
+  }
+
+  if (data.sectorRank && data.sectorRank.length > 0) {
+    const sorted = [...data.sectorRank].sort((a, b) => b.changePct - a.changePct);
+    const upCount = sorted.filter(s => s.changePct > 0).length;
+    const downCount = sorted.filter(s => s.changePct < 0).length;
+    const upRatio = upCount / sorted.length;
+
+    if (upRatio > 0.8) score += 6;
+    else if (upRatio > 0.6) score += 3;
+    else if (upRatio > 0.5) score += 1;
+    else if (upRatio < 0.2) score -= 6;
+    else if (upRatio < 0.3) score -= 3;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+// 情绪等级判断
+function sentimentLevel(score) {
+  if (score >= 80) return { level: '极度亢奋', color: 'up', advice: '减仓避险' };
+  if (score >= 65) return { level: '偏强乐观', color: 'up', advice: '持有为主' };
+  if (score >= 45) return { level: '中性震荡', color: 'neutral', advice: '波段操作' };
+  if (score >= 30) return { level: '偏弱谨慎', color: 'down', advice: '控制仓位' };
+  if (score >= 15) return { level: '低迷恐慌', color: 'down', advice: '观望为主' };
+  return { level: '极端冰点', color: 'down', advice: '分批抄底' };
+}
+
+// 生成操作建议
+function generateTradingAdvice(data, sentimentScore) {
+  const advice = {
+    action: '',
+    actionLevel: '',
+    position: '',
+    focus: [],
+    avoid: [],
+    reasons: [],
+    riskLevel: ''
+  };
+
+  const sent = sentimentLevel(sentimentScore);
+  advice.sentiment = sent;
+
+  if (sentimentScore >= 75) {
+    advice.action = '减仓兑现';
+    advice.actionLevel = 'warn';
+    advice.position = '3-5成';
+    advice.riskLevel = '高';
+    advice.reasons.push('市场情绪过热，短期回调风险加大');
+    advice.reasons.push('涨停数量过多，赚钱效应扩散至尾声');
+  } else if (sentimentScore >= 60) {
+    advice.action = '持有做多';
+    advice.actionLevel = 'up';
+    advice.position = '6-8成';
+    advice.riskLevel = '中低';
+    advice.reasons.push('市场情绪积极，赚钱效应良好');
+    advice.reasons.push('资金流入明确，趋势延续概率大');
+  } else if (sentimentScore >= 40) {
+    advice.action = '震荡布局';
+    advice.actionLevel = 'neutral';
+    advice.position = '5-6成';
+    advice.riskLevel = '中';
+    advice.reasons.push('市场处于震荡区间，结构性机会为主');
+    advice.reasons.push('板块分化明显，精选个股优于追涨');
+  } else if (sentimentScore >= 25) {
+    advice.action = '谨慎观望';
+    advice.actionLevel = 'down';
+    advice.position = '2-4成';
+    advice.riskLevel = '中高';
+    advice.reasons.push('市场情绪偏弱，亏钱效应显现');
+    advice.reasons.push('资金流出明显，防御为主');
+  } else {
+    advice.action = '分批抄底';
+    advice.actionLevel = 'info';
+    advice.position = '3-5成';
+    advice.riskLevel = '中';
+    advice.reasons.push('市场情绪接近冰点，恐慌情绪释放');
+    advice.reasons.push('逆向投资窗口开启，分批布局优质标的');
+  }
+
+  if (data.sectorFundFlow && data.sectorRankHistory) {
+    const fundMap = {};
+    data.sectorFundFlow.forEach(s => { fundMap[s.code] = s; });
+
+    const scored = data.sectorRankHistory.map(s => ({
+      ...s,
+      score: scoreSectorOpportunity(s, fundMap[s.code]),
+      fund: fundMap[s.code]
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+
+    const topSectors = scored.filter(s => s.score >= 65).slice(0, 5);
+    const bottomSectors = scored.filter(s => s.score <= 35).slice(-5).reverse();
+
+    advice.focus = topSectors.map(s => ({
+      name: s.name,
+      score: s.score,
+      reason: s.fund && s.fund.mainNetInflow > 0
+        ? `今日${formatPct(s.changePct)} + 主力净流入${(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
+        : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}趋势向上`
+    }));
+
+    advice.avoid = bottomSectors.map(s => ({
+      name: s.name,
+      score: s.score,
+      reason: s.fund && s.fund.mainNetInflow < 0
+        ? `今日${formatPct(s.changePct)} + 主力净流出${Math.abs(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
+        : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}趋势向下`
+    }));
+
+    if (advice.focus.length < 3) {
+      advice.focus = scored.slice(0, 3).map(s => ({
+        name: s.name,
+        score: s.score,
+        reason: s.fund && s.fund.mainNetInflow > 0
+          ? `今日${formatPct(s.changePct)} + 主力净流入${(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
+          : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}`
+      }));
+    }
+    if (advice.avoid.length < 3) {
+      advice.avoid = scored.slice(-3).reverse().map(s => ({
+        name: s.name,
+        score: s.score,
+        reason: s.fund && s.fund.mainNetInflow < 0
+          ? `今日${formatPct(s.changePct)} + 主力净流出${Math.abs(s.fund.mainNetInflow/100000000).toFixed(1)}亿`
+          : `今日${formatPct(s.changePct)} + 5日${formatPct(s.change5d)}`
+      }));
+    }
+  }
+
+  if (data.conceptSector && data.conceptSector.length) {
+    const conceptTop = [...data.conceptSector].sort((a, b) => b.changePct - a.changePct).slice(0, 3);
+    advice.hotConcepts = conceptTop.map(s => ({
+      name: s.name,
+      changePct: s.changePct,
+      change5d: s.change5d
+    }));
+  }
+
+  return advice;
+}
+
+// 生成明日关注清单
+function generateTomorrowWatchlist(data) {
+  const watchlist = {
+    strongStocks: [],
+    breakouts: [],
+    fallenAngels: []
+  };
+
+  if (data.limitUp && data.limitUp.list) {
+    const multiBoard = data.limitUp.list.filter(s => s.limitDays >= 2).slice(0, 5);
+    watchlist.strongStocks = multiBoard.map(s => ({
+      name: s.name,
+      code: s.code,
+      days: s.limitDays,
+      changePct: s.changePct,
+      industry: s.industry,
+      reason: `${s.limitDays}连板，市场高标，关注连板高度延续性`
+    }));
+
+    const firstBoard = data.limitUp.list
+      .filter(s => s.limitDays === 1 && s.industry)
+      .slice(0, 5);
+    watchlist.breakouts = firstBoard.map(s => ({
+      name: s.name,
+      code: s.code,
+      changePct: s.changePct,
+      industry: s.industry,
+      reason: `首板涨停，${s.industry}板块，关注明日溢价`
+    }));
+  }
+
+  if (data.stockFundInflow && data.stockFundInflow.length) {
+    const bigInflow = data.stockFundInflow
+      .filter(s => s.mainNetInflow / 100000000 > 5 && s.changePct < 5)
+      .slice(0, 3);
+    if (bigInflow.length) {
+      watchlist.fallenAngels = bigInflow.map(s => ({
+        name: s.name,
+        code: s.code,
+        changePct: s.changePct,
+        inflow: (s.mainNetInflow / 100000000).toFixed(2),
+        reason: `主力净流入${(s.mainNetInflow/100000000).toFixed(1)}亿但涨幅不大，资金潜伏`
+      }));
+    }
+  }
+
+  return watchlist;
+}
+
+// 风险预警检测
+function detectRisks(data) {
+  const risks = [];
+
+  if (data.marketIndex) {
+    const sh = data.marketIndex.find(i => i.code === '000001' || i.code === 'sh000001');
+    if (sh && sh.changePct < -1.5) {
+      risks.push({ level: 'high', title: '大盘大跌', desc: `上证指数下跌 ${formatPct(sh.changePct)}，系统性风险显现，建议降低仓位。` });
+    }
+  }
+
+  if (data.limitDown && data.limitDown.total > 30) {
+    risks.push({ level: 'high', title: '跌停潮', desc: `跌停个股达 ${data.limitDown.total} 家，市场恐慌情绪蔓延，空仓观望为上。` });
+  }
+
+  if (data.northbound && data.northbound.latest && data.northbound.latest.total < -80) {
+    risks.push({ level: 'high', title: '北向大幅流出', desc: `北向资金净流出 ${Math.abs(data.northbound.latest.total).toFixed(0)} 亿，外资大幅撤离。` });
+  }
+
+  if (data.brokenLimit && data.limitUp) {
+    const total = data.limitUp.total + data.brokenLimit.total;
+    if (total > 0 && data.brokenLimit.total / total > 0.5) {
+      risks.push({ level: 'medium', title: '炸板率过高', desc: `炸板率 ${(data.brokenLimit.total/total*100).toFixed(0)}%，打板情绪极差，短线资金退缩。` });
+    }
+  }
+
+  if (data.sectorFundFlow && data.sectorFundFlow.length) {
+    const outflow = data.sectorFundFlow.filter(s => s.mainNetInflow < 0);
+    if (outflow.length > data.sectorFundFlow.length * 0.7) {
+      risks.push({ level: 'medium', title: '资金全面流出', desc: `超七成板块主力资金净流出，市场缺乏承接力量。` });
+    }
+  }
+
+  return risks;
+}
+
+// ===== 14. 统一采集 + 智能分析 =====
+async function fetchAllMarketDataWithAnalysis() {
+  const data = await fetchAllMarketData();
+
+  data.analysis = {};
+  data.analysis.sentimentScore = calculateMarketSentiment(data);
+  data.analysis.sentiment = sentimentLevel(data.analysis.sentimentScore);
+  data.analysis.tradingAdvice = generateTradingAdvice(data, data.analysis.sentimentScore);
+  data.analysis.watchlist = generateTomorrowWatchlist(data);
+  data.analysis.risks = detectRisks(data);
+
+  if (data.sectorRankHistory && data.sectorFundFlow) {
+    const fundMap = {};
+    data.sectorFundFlow.forEach(s => { fundMap[s.code] = s; });
+    data.analysis.scoredSectors = data.sectorRankHistory.map(s => ({
+      ...s,
+      score: scoreSectorOpportunity(s, fundMap[s.code])
+    })).sort((a, b) => b.score - a.score);
+  }
+
+  return data;
+}
+
 // ===== 导出到全局 =====
 window.MarketDataAPI = {
   jsonp,
@@ -491,5 +872,12 @@ window.MarketDataAPI = {
   fetchAllMarketData,
   formatPct,
   formatAmount,
-  getTodayStr
+  getTodayStr,
+  scoreSectorOpportunity,
+  calculateMarketSentiment,
+  sentimentLevel,
+  generateTradingAdvice,
+  generateTomorrowWatchlist,
+  detectRisks,
+  fetchAllMarketDataWithAnalysis
 };

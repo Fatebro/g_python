@@ -547,6 +547,236 @@ function renderWatchlistFull(watchlist) {
   ).join('') : '<div class="empty-tip">暂无热门板块龙头</div>';
 }
 
+// ===== 短期情绪渲染 =====
+function renderShortTermSentiment(analysis) {
+  const st = analysis.shortTermSentiment;
+  if (!st) return;
+
+  const scoreEl = $('short-term-score');
+  scoreEl.textContent = st.score;
+  scoreEl.className = 'sentiment-score ' + (st.score >= 60 ? 'up' : st.score >= 40 ? 'neutral' : 'down');
+  $('short-term-level').textContent = st.level;
+  $('short-term-advice').textContent = st.advice;
+
+  const hm = st.hotMoney;
+  $('hot-money-score').textContent = hm.activeScore;
+  $('hot-money-score').className = 'sentiment-score ' + (hm.activeScore >= 60 ? 'up' : hm.activeScore >= 40 ? 'neutral' : 'down');
+  $('hot-money-level').textContent = hm.activeLevel;
+
+  const q = st.quality;
+  $('limit-quality-score').textContent = q.qualityScore;
+  $('limit-quality-score').className = 'sentiment-score ' + (q.qualityScore >= 60 ? 'up' : q.qualityScore >= 40 ? 'neutral' : 'down');
+  $('limit-quality-desc').textContent = q.description;
+
+  // 情绪周期
+  const c = st.cycle;
+  const phaseColor = { '高潮期': 'down', '发酵期': 'up', '震荡期': 'neutral', '退潮期': 'down', '冰点期': 'info' };
+  const phaseCls = phaseColor[c.phase] || 'neutral';
+  const scoresLine = ['情绪', '赚钱', '资金'].map((label, i) => {
+    const vals = [c.scores.sentiment, c.scores.moneyEffect, c.scores.fundHeat];
+    return `<span style="margin-right:12px;">${label}: <strong style="color:var(--${vals[i] >= 60 ? 'up' : vals[i] >= 40 ? 'text' : 'down'});">${vals[i]}</strong></span>`;
+  }).join('');
+  $('sentiment-cycle').innerHTML = `
+    <div style="text-align:center;padding:8px 0 12px;">
+      <div style="display:inline-block;padding:8px 24px;background:var(--${phaseCls === 'neutral' ? 'bg-soft' : phaseCls + '-bg'});color:var(--${phaseCls === 'neutral' ? 'text' : phaseCls});border-radius:8px;font-size:18px;font-weight:700;">${c.phase}</div>
+    </div>
+    <div style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:10px;">${c.phaseDesc}</div>
+    <div style="font-size:13px;margin-bottom:8px;">${scoresLine}</div>
+    <div style="font-size:12px;color:var(--text-dim);">三因子均值: <strong>${c.scores.average}</strong> · 差值: <strong>${c.scores.divergence}</strong></div>
+    <div style="margin-top:10px;padding:8px 12px;background:var(--bg-soft);border-radius:6px;font-size:13px;">📋 <strong>操作建议：</strong>${c.action}</div>
+    <div style="margin-top:6px;font-size:12px;color:var(--text-muted);">下一阶段预判：${c.nextPhase}</div>
+  `;
+
+  // 游资信号
+  if (hm.signals && hm.signals.length) {
+    const levelColor = { strong: 'up', medium: 'neutral', weak: 'down', fast: 'up', normal: 'neutral', slow: 'down' };
+    $('hot-money-signals').innerHTML = hm.signals.map(s => {
+      const cls = levelColor[s.level] || 'neutral';
+      return `
+        <div style="padding:10px 0;border-bottom:1px dashed var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-weight:600;font-size:13px;">${s.name}</span>
+            <span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--${cls === 'neutral' ? 'bg-soft' : cls + '-bg'});color:var(--${cls === 'neutral' ? 'text-dim' : cls});">${s.desc.match(/\d+\.?\d*%/)?.[0] || s.level}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);">${s.desc}</div>
+        </div>
+      `;
+    }).join('') + `<div style="margin-top:10px;font-size:13px;color:var(--text);">${hm.description}</div>`;
+  } else {
+    $('hot-money-signals').innerHTML = '<div class="empty-tip">暂无游资信号</div>';
+  }
+
+  // 涨停板质量
+  const stats = [
+    { name: '涨停总数', value: q.totalCount + '家', cls: 'up' },
+    { name: '强封板', value: q.sealedCount + '家', cls: 'up' },
+    { name: '弱封板', value: q.weakSealCount + '家', cls: 'warn' },
+    { name: '炸板数', value: q.brokenCount + '家', cls: 'down' },
+    { name: '封板率', value: q.sealRate.toFixed(0) + '%', cls: q.sealRate > 60 ? 'up' : 'down' },
+    { name: '行业集中度', value: q.industryConcentration.toFixed(0) + '%', cls: 'neutral' },
+    { name: '平均换手', value: q.avgTurnover.toFixed(1) + '%', cls: 'neutral' },
+    { name: '质量评分', value: q.qualityScore + '分', cls: q.qualityScore >= 60 ? 'up' : 'neutral' }
+  ];
+  let qualityHTML = `<div class="market-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">`;
+  qualityHTML += stats.map(s =>
+    `<div class="market-item">
+      <div class="market-name">${s.name}</div>
+      <div class="market-price ${s.cls}">${s.value}</div>
+    </div>`
+  ).join('');
+  qualityHTML += `</div>`;
+
+  if (q.topIndustries && q.topIndustries.length) {
+    qualityHTML += `<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px;">涨停最多的行业：</div>`;
+    qualityHTML += q.topIndustries.map((ind, i) =>
+      `<span style="display:inline-block;padding:4px 12px;margin:3px;background:var(--up-bg);color:var(--up);border-radius:4px;font-size:12px;">${i+1}. ${ind.name} (${ind.count}家)</span>`
+    ).join('');
+  }
+  qualityHTML += `<div style="margin-top:12px;font-size:13px;color:var(--text);">${q.description}</div>`;
+  $('limit-quality-detail').innerHTML = qualityHTML;
+}
+
+// ===== 长期价值渲染 =====
+function renderLongTermValue(analysis) {
+  const lt = analysis.longTermValue;
+  if (!lt) return;
+
+  const scoreEl = $('long-term-score');
+  scoreEl.textContent = lt.score;
+  scoreEl.className = 'sentiment-score ' + (lt.score >= 60 ? 'up' : lt.score >= 40 ? 'neutral' : 'down');
+  $('long-term-level').textContent = lt.level;
+  $('long-term-advice').textContent = lt.advice;
+
+  const p = lt.prosperity;
+  $('prosperity-score').textContent = p.avgProsperity;
+  $('prosperity-score').className = 'sentiment-score ' + (p.avgProsperity >= 60 ? 'up' : p.avgProsperity >= 40 ? 'neutral' : 'down');
+  $('prosperity-desc').textContent = p.description;
+
+  const nb = lt.northbound;
+  $('nb-signal-score').textContent = nb.netFlow > 0 ? '+' + nb.netFlow.toFixed(1) : nb.netFlow.toFixed(1);
+  $('nb-signal-score').className = 'sentiment-score ' + (nb.netFlow > 30 ? 'up' : nb.netFlow > 0 ? 'neutral' : 'down');
+  $('nb-signal-text').textContent = nb.signal;
+
+  // 价值vs成长
+  const s = lt.style;
+  const maxScore = Math.max(s.valueScore, s.growthScore, 1);
+  const valPct = (s.valueScore / maxScore * 100).toFixed(0);
+  const groPct = (s.growthScore / maxScore * 100).toFixed(0);
+  const dominantColor = s.dominant === '成长占优' ? 'var(--up)' : s.dominant === '价值占优' ? 'var(--accent)' : 'var(--text-dim)';
+  $('value-growth-style').innerHTML = `
+    <div style="text-align:center;margin-bottom:16px;">
+      <span style="display:inline-block;padding:6px 16px;background:var(--bg-soft);border-radius:6px;font-size:14px;font-weight:600;color:${dominantColor};">${s.dominant}</span>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;">💎 价值板块（${s.valueCount}个）</span>
+        <span style="font-size:13px;color:var(--accent);">${s.valueAvg}% · 评分${s.valueScore}</span>
+      </div>
+      <div style="height:10px;background:var(--bg-soft);border-radius:5px;overflow:hidden;">
+        <div style="height:100%;width:${valPct}%;background:var(--accent);border-radius:5px;transition:width 0.5s;"></div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;">🚀 成长板块（${s.growthCount}个）</span>
+        <span style="font-size:13px;color:var(--up);">${s.growthAvg}% · 评分${s.growthScore}</span>
+      </div>
+      <div style="height:10px;background:var(--bg-soft);border-radius:5px;overflow:hidden;">
+        <div style="height:100%;width:${groPct}%;background:var(--up);border-radius:5px;transition:width 0.5s;"></div>
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--text);line-height:1.6;">${s.description}</div>
+  `;
+
+  // 北向资金长线
+  $('nb-longterm-signal').innerHTML = `
+    <div style="text-align:center;margin-bottom:12px;">
+      <span style="display:inline-block;padding:6px 16px;border-radius:6px;font-size:14px;font-weight:600;background:var(--${nb.netFlow > 0 ? 'up' : 'down'}-bg);color:var(--${nb.netFlow > 0 ? 'up' : 'down'});">${nb.signal}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div style="text-align:center;padding:10px;background:var(--bg-soft);border-radius:6px;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">净流入</div>
+        <div style="font-size:18px;font-weight:700;color:${nb.netFlow > 0 ? 'var(--up)' : 'var(--down)'};">${nb.netFlow > 0 ? '+' : ''}${nb.netFlow.toFixed(1)}亿</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--bg-soft);border-radius:6px;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">趋势</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);">${nb.trend}</div>
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:8px;">${nb.description}</div>
+    <div style="padding:8px 12px;background:var(--bg-soft);border-radius:6px;font-size:13px;">📋 <strong>建议：</strong>${nb.advice}</div>
+  `;
+
+  // 行业景气度排行
+  if (p.industries && p.industries.length) {
+    const trendIcon = { '上升': '📈', '下降': '📉', '回调': '🔄', '反弹': '↩️', '震荡': '➡️' };
+    $('prosperity-list').innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);">
+          <th style="text-align:left;padding:8px;color:var(--text-dim);font-weight:500;">行业</th>
+          <th style="text-align:center;padding:8px;color:var(--text-dim);font-weight:500;">景气度</th>
+          <th style="text-align:center;padding:8px;color:var(--text-dim);font-weight:500;">今日</th>
+          <th style="text-align:center;padding:8px;color:var(--text-dim);font-weight:500;">5日</th>
+          <th style="text-align:center;padding:8px;color:var(--text-dim);font-weight:500;">20日</th>
+          <th style="text-align:center;padding:8px;color:var(--text-dim);font-weight:500;">趋势</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${p.industries.map(ind => `
+          <tr style="border-bottom:1px dashed var(--border);">
+            <td style="padding:8px;font-weight:500;">${ind.name}</td>
+            <td style="text-align:center;padding:8px;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--${ind.prosperity >= 65 ? 'up' : ind.prosperity >= 40 ? 'bg-soft' : 'down'}-bg);color:var(--${ind.prosperity >= 65 ? 'up' : ind.prosperity >= 40 ? 'text' : 'down'});font-weight:600;">${ind.prosperity}</span></td>
+            <td style="text-align:center;padding:8px;color:${ind.today >= 0 ? 'var(--up)' : 'var(--down)'};">${ind.today >= 0 ? '+' : ''}${ind.today.toFixed(2)}%</td>
+            <td style="text-align:center;padding:8px;color:${ind.d5 >= 0 ? 'var(--up)' : 'var(--down)'};">${ind.d5 >= 0 ? '+' : ''}${ind.d5.toFixed(2)}%</td>
+            <td style="text-align:center;padding:8px;color:${ind.d20 >= 0 ? 'var(--up)' : 'var(--down)'};">${ind.d20 >= 0 ? '+' : ''}${ind.d20.toFixed(2)}%</td>
+            <td style="text-align:center;padding:8px;">${trendIcon[ind.trend] || '➡️'} ${ind.trend}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+  } else {
+    $('prosperity-list').innerHTML = '<div class="empty-tip">暂无景气度数据</div>';
+  }
+
+  // 行业生命周期
+  const lc = lt.lifecycle;
+  if (lc.lifecycle && lc.lifecycle.length) {
+    const stageColor = { '导入期': 'up', '成长期': 'up', '加速期': 'warn', '成熟期': 'neutral', '震荡期': 'neutral', '衰退期': 'down', '回暖期': 'info' };
+    $('lifecycle-list').innerHTML = `
+      <div style="margin-bottom:12px;padding:10px 14px;background:var(--bg-soft);border-radius:6px;font-size:13px;color:var(--text);">${lc.description}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+        ${Object.entries(lc.stageCount).map(([stage, count]) => {
+          const cls = stageColor[stage] || 'neutral';
+          return `<span style="padding:4px 10px;border-radius:4px;font-size:12px;background:var(--${cls === 'neutral' ? 'bg-soft' : cls + '-bg'});color:var(--${cls === 'neutral' ? 'text-dim' : cls});">${stage}：${count}个</span>`;
+        }).join('')}
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left;padding:8px;color:var(--text-dim);font-weight:500;">行业</th>
+            <th style="text-align:center;padding:8px;color:var(--text-dim);font-weight:500;">阶段</th>
+            <th style="text-align:left;padding:8px;color:var(--text-dim);font-weight:500;">说明</th>
+            <th style="text-align:center;padding:8px;color:var(--text-dim);font-weight:500;">潜力</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lc.lifecycle.map(l => {
+            const cls = stageColor[l.stage] || 'neutral';
+            return `<tr style="border-bottom:1px dashed var(--border);">
+              <td style="padding:8px;font-weight:500;">${l.name}</td>
+              <td style="text-align:center;padding:8px;"><span style="padding:2px 8px;border-radius:4px;background:var(--${cls === 'neutral' ? 'bg-soft' : cls + '-bg'});color:var(--${cls === 'neutral' ? 'text' : cls});font-size:12px;">${l.stage}</span></td>
+              <td style="padding:8px;font-size:12px;color:var(--text-dim);">${l.stageDesc}</td>
+              <td style="text-align:center;padding:8px;font-size:12px;color:var(--text);">${l.potential}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  } else {
+    $('lifecycle-list').innerHTML = '<div class="empty-tip">暂无生命周期数据</div>';
+  }
+}
+
 function generateDecisionReport(data) {
   return data.analysis.fullReport || '';
 }
@@ -592,6 +822,8 @@ async function loadData() {
     renderComprehensiveRisk(data.analysis);
     renderSectorLeadersFull(data.analysis);
     renderLadderFull(data.analysis);
+    renderShortTermSentiment(data.analysis);
+    renderLongTermValue(data.analysis);
     renderTextReport(data);
 
     const now = new Date();

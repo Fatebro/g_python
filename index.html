@@ -862,6 +862,8 @@
     <!-- 标签页 -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="strategy">📈 今日策略</button>
+      <button class="tab-btn" data-tab="shortterm">🔥 短期情绪</button>
+      <button class="tab-btn" data-tab="longterm">💎 长期价值</button>
       <button class="tab-btn" data-tab="money">💰 赚钱效应</button>
       <button class="tab-btn" data-tab="watchlist">👀 明日关注</button>
       <button class="tab-btn" data-tab="risk">⚠️ 风险预警</button>
@@ -919,6 +921,101 @@
       <div class="card">
         <div class="card-title"><span class="icon">🔥</span> 热门板块龙头</div>
         <div class="stock-list" id="hot-sector-leaders">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 短期情绪 -->
+    <div class="tab-panel" id="panel-shortterm">
+      <div class="grid-3" style="margin-bottom:20px;">
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">短期情绪综合分</div>
+          <div class="sentiment-score neutral" id="short-term-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="short-term-level">--</div>
+          <div style="margin-top:6px;font-size:12px;color:var(--text-dim);" id="short-term-advice">--</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">游资活跃度</div>
+          <div class="sentiment-score neutral" id="hot-money-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="hot-money-level">--</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">涨停板质量</div>
+          <div class="sentiment-score neutral" id="limit-quality-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="limit-quality-desc">--</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">🔄</span> 情绪周期定位</div>
+          <div id="sentiment-cycle">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">📡</span> 游资动向信号</div>
+          <div id="hot-money-signals">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">🎯</span> 涨停板质量分析</div>
+        <div id="limit-quality-detail">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 长期价值 -->
+    <div class="tab-panel" id="panel-longterm">
+      <div class="grid-3" style="margin-bottom:20px;">
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">长期价值综合分</div>
+          <div class="sentiment-score neutral" id="long-term-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="long-term-level">--</div>
+          <div style="margin-top:6px;font-size:12px;color:var(--text-dim);" id="long-term-advice">--</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">行业景气度</div>
+          <div class="sentiment-score neutral" id="prosperity-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="prosperity-desc">--</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="hero-stat-label" style="margin-bottom:8px;">北向资金信号</div>
+          <div class="sentiment-score neutral" id="nb-signal-score" style="font-size:32px;">--</div>
+          <div class="sentiment-label" id="nb-signal-text">--</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">⚖️</span> 价值 vs 成长 风格</div>
+          <div id="value-growth-style">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🌍</span> 北向资金长线信号</div>
+          <div id="nb-longterm-signal">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">📈</span> 行业景气度排行</div>
+        <div id="prosperity-list">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">🔄</span> 行业生命周期定位</div>
+        <div id="lifecycle-list">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>

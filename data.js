@@ -1608,6 +1608,447 @@ function detectRisks(data) {
 }
 
 // ===== 14. 统一采集 + 智能分析 =====
+// ===== 14. 短期情绪分析引擎 =====
+
+// 14.1 游资动向分析
+function analyzeHotMoneyFlow(data) {
+  const result = {
+    activeLevel: '中等',
+    activeScore: 50,
+    signals: [],
+    description: ''
+  };
+
+  const limitUp = data.limitUp ? data.limitUp.total : 0;
+  const brokenLimit = data.brokenLimit ? data.brokenLimit.total : 0;
+  const ladder = data.analysis && data.analysis.deepLadder ? data.analysis.deepLadder : null;
+
+  // 涨停封板强度 = 涨停数 / (涨停数 + 炸板数)
+  const totalAttack = limitUp + brokenLimit;
+  const sealRate = totalAttack > 0 ? limitUp / totalAttack * 100 : 50;
+
+  // 连板接力意愿 = 多板股占比
+  let multiBoardRate = 0;
+  if (ladder && ladder.ladder) {
+    const multiBoard = ladder.ladder.filter(l => l.height >= 2).reduce((sum, l) => sum + l.count, 0);
+    multiBoardRate = limitUp > 0 ? multiBoard / limitUp * 100 : 0;
+  }
+
+  // 板块轮动速度 = 涨停板块数 / 总板块数
+  let rotationSpeed = 0;
+  if (data.sectorRank && data.sectorRank.length && data.limitUp && data.limitUp.list) {
+    const hotIndustries = new Set(data.limitUp.list.map(s => s.industry).filter(Boolean));
+    rotationSpeed = hotIndustries.size / data.sectorRank.length * 100;
+  }
+
+  // 游资活跃度综合评分
+  let score = 50;
+  if (sealRate > 80) { score += 15; result.signals.push({ name: '封板强度', level: 'strong', desc: `封板率${sealRate.toFixed(0)}%，游资封板坚决` }); }
+  else if (sealRate > 65) { score += 8; result.signals.push({ name: '封板强度', level: 'medium', desc: `封板率${sealRate.toFixed(0)}%，封板意愿较强` }); }
+  else if (sealRate < 40) { score -= 10; result.signals.push({ name: '封板强度', level: 'weak', desc: `封板率${sealRate.toFixed(0)}%，封板意愿弱，抛压大` }); }
+  else { score -= 3; result.signals.push({ name: '封板强度', level: 'neutral', desc: `封板率${sealRate.toFixed(0)}%，正常水平` }); }
+
+  if (multiBoardRate > 30) { score += 15; result.signals.push({ name: '接力意愿', level: 'strong', desc: `连板占比${multiBoardRate.toFixed(0)}%，接力情绪高涨` }); }
+  else if (multiBoardRate > 15) { score += 6; result.signals.push({ name: '接力意愿', level: 'medium', desc: `连板占比${multiBoardRate.toFixed(0)}%，接力情绪一般` }); }
+  else if (multiBoardRate < 5 && limitUp > 10) { score -= 8; result.signals.push({ name: '接力意愿', level: 'weak', desc: `连板占比${multiBoardRate.toFixed(0)}%，接力情绪低落` }); }
+
+  if (rotationSpeed > 40) { score += 10; result.signals.push({ name: '板块轮动', level: 'fast', desc: `涨停覆盖${rotationSpeed.toFixed(0)}%板块，热点扩散快` }); }
+  else if (rotationSpeed > 20) { score += 3; result.signals.push({ name: '板块轮动', level: 'normal', desc: `涨停覆盖${rotationSpeed.toFixed(0)}%板块，轮动正常` }); }
+  else { score -= 5; result.signals.push({ name: '板块轮动', level: 'slow', desc: `涨停覆盖${rotationSpeed.toFixed(0)}%板块，热点集中` }); }
+
+  // 龙头高度信号
+  if (ladder && ladder.maxHeight >= 7) { score += 10; result.signals.push({ name: '龙头高度', level: 'strong', desc: `最高${ladder.maxHeight}板，龙头打开空间` }); }
+  else if (ladder && ladder.maxHeight >= 5) { score += 5; result.signals.push({ name: '龙头高度', level: 'medium', desc: `最高${ladder.maxHeight}板，龙头有一定高度` }); }
+  else if (ladder && ladder.maxHeight <= 2 && limitUp > 10) { score -= 5; result.signals.push({ name: '龙头高度', level: 'weak', desc: `最高仅${ladder.maxHeight}板，空间有限` }); }
+
+  result.activeScore = Math.max(0, Math.min(100, Math.round(score)));
+
+  if (result.activeScore >= 75) { result.activeLevel = '极度活跃'; result.description = '游资极度活跃，短线情绪亢奋，追涨打板成功率高但注意退潮风险'; }
+  else if (result.activeScore >= 60) { result.activeLevel = '较为活跃'; result.description = '游资较为活跃，短线有一定赚钱效应，可适度参与热点'; }
+  else if (result.activeScore >= 40) { result.activeLevel = '中性'; result.description = '游资活跃度一般，短线操作难度中等，精选标的'; }
+  else if (result.activeScore >= 25) { result.activeLevel = '较冷清'; result.description = '游资活跃度较低，短线亏钱概率大，控制仓位'; }
+  else { result.activeLevel = '极度冷清'; result.description = '游资极度冷清，短线情绪冰点，建议观望'; }
+
+  return result;
+}
+
+// 14.2 市场情绪周期定位
+function analyzeSentimentCycle(data) {
+  const score = data.analysis ? data.analysis.sentimentScore : 50;
+  const moneyEffect = data.analysis && data.analysis.moneyEffect ? data.analysis.moneyEffect.profitEffectScore : 50;
+  const fundHeat = data.analysis && data.analysis.fundHeat ? data.analysis.fundHeat.fundHeatScore : 50;
+
+  // 三因子共振判断周期位置
+  const avg = (score + moneyEffect + fundHeat) / 3;
+  const divergence = Math.max(score, moneyEffect, fundHeat) - Math.min(score, moneyEffect, fundHeat);
+
+  let phase = '震荡期';
+  let phaseDesc = '';
+  let action = '';
+  let nextPhase = '';
+
+  if (avg >= 75 && divergence < 20) {
+    phase = '高潮期';
+    phaseDesc = '情绪、赚钱效应、资金三高共振，市场进入亢奋状态';
+    action = '逐步减仓，锁定利润，警惕退潮';
+    nextPhase = '退潮期';
+  } else if (avg >= 65 && score >= 70) {
+    phase = '发酵期';
+    phaseDesc = '市场情绪持续升温，赚钱效应正在扩散';
+    action = '持有为主，可适度加仓主线';
+    nextPhase = '高潮期';
+  } else if (avg >= 45 && avg < 65) {
+    phase = '震荡期';
+    phaseDesc = '多空交织，情绪和资金未形成一致方向';
+    action = '波段操作，快进快出';
+    nextPhase = score > 55 ? '发酵期' : '冰点期';
+  } else if (avg >= 25 && avg < 45) {
+    phase = '退潮期';
+    phaseDesc = '赚钱效应消退，资金开始撤离，亏钱效应扩散';
+    action = '降低仓位，观望为主';
+    nextPhase = '冰点期';
+  } else {
+    phase = '冰点期';
+    phaseDesc = '情绪极度低迷，但物极必反，反弹在酝酿';
+    action = '分批建仓，逆向布局';
+    nextPhase = '启动期';
+  }
+
+  if (divergence >= 25) {
+    phaseDesc += `。注意：三因子分歧较大（差值${divergence.toFixed(0)}），市场信号不一致`;
+  }
+
+  return {
+    phase,
+    phaseDesc,
+    action,
+    nextPhase,
+    scores: { sentiment: score, moneyEffect: moneyEffect, fundHeat: fundHeat, average: Math.round(avg), divergence: Math.round(divergence) }
+  };
+}
+
+// 14.3 涨停板质量分析
+function analyzeLimitUpQuality(data) {
+  const list = data.limitUp && data.limitUp.list ? data.limitUp.list : [];
+  const broken = data.brokenLimit && data.brokenLimit.list ? data.brokenLimit.list : [];
+
+  const result = {
+    totalCount: list.length,
+    sealedCount: 0,
+    weakSealCount: 0,
+    brokenCount: broken.length,
+    sealRate: 0,
+    avgTurnover: 0,
+    industryConcentration: 0,
+    qualityScore: 50,
+    topIndustries: [],
+    description: ''
+  };
+
+  if (list.length === 0) {
+    result.description = '无涨停个股，市场极度低迷';
+    return result;
+  }
+
+  // 封板质量：有首次封板时间且无炸板记录的为强封板
+  result.sealedCount = list.filter(s => s.firstSealTime && (!s.brokenCount || s.brokenCount === 0)).length;
+  result.weakSealCount = list.filter(s => s.brokenCount && s.brokenCount > 0).length;
+  result.sealRate = list.length > 0 ? result.sealedCount / list.length * 100 : 0;
+
+  // 行业集中度
+  const industryMap = {};
+  list.forEach(s => {
+    const ind = s.industry || '其他';
+    industryMap[ind] = (industryMap[ind] || 0) + 1;
+  });
+  const sortedInd = Object.entries(industryMap).sort((a, b) => b[1] - a[1]);
+  result.topIndustries = sortedInd.slice(0, 5).map(([name, count]) => ({ name, count }));
+  result.industryConcentration = sortedInd.length > 0 ? sortedInd[0][1] / list.length * 100 : 0;
+
+  // 平均换手率
+  const turnovers = list.map(s => s.turnoverRate).filter(t => t && t > 0);
+  result.avgTurnover = turnovers.length > 0 ? turnovers.reduce((a, b) => a + b, 0) / turnovers.length : 0;
+
+  // 质量评分
+  let score = 50;
+  if (result.sealRate > 80) score += 15;
+  else if (result.sealRate > 60) score += 8;
+  else if (result.sealRate < 40) score -= 12;
+
+  if (result.industryConcentration > 30) score += 10;
+  else if (result.industryConcentration > 15) score += 5;
+  else score -= 3;
+
+  if (result.avgTurnover > 10 && result.avgTurnover < 25) score += 8;
+  else if (result.avgTurnover > 30) score -= 5;
+
+  const multiBoard = list.filter(s => s.days && s.days >= 2).length;
+  if (multiBoard / list.length > 0.2) score += 8;
+
+  result.qualityScore = Math.max(0, Math.min(100, Math.round(score)));
+
+  if (result.qualityScore >= 70) result.description = '涨停质量高，封板坚决，热点集中，可积极参与';
+  else if (result.qualityScore >= 50) result.description = '涨停质量中等，封板尚可，热点有一定集中度';
+  else result.description = '涨停质量偏低，封板弱，热点分散，谨慎参与';
+
+  return result;
+}
+
+// 14.4 综合短期情绪分析
+function analyzeShortTermSentiment(data) {
+  const hotMoney = analyzeHotMoneyFlow(data);
+  const cycle = analyzeSentimentCycle(data);
+  const quality = analyzeLimitUpQuality(data);
+
+  // 综合短期情绪分
+  const combinedScore = Math.round((hotMoney.activeScore * 0.4 + quality.qualityScore * 0.3 + data.analysis.sentimentScore * 0.3));
+
+  let level = '中性';
+  let advice = '';
+  if (combinedScore >= 75) { level = '极度亢奋'; advice = '短线情绪过热，随时可能退潮，控制仓位、锁定利润'; }
+  else if (combinedScore >= 60) { level = '偏强'; advice = '短线情绪较好，可适度参与热点，注意止损'; }
+  else if (combinedScore >= 40) { level = '中性'; advice = '短线情绪一般，精选个股，快进快出'; }
+  else if (combinedScore >= 25) { level = '偏弱'; advice = '短线情绪低迷，亏钱概率大，建议观望'; }
+  else { level = '冰点'; advice = '短线情绪冰点，但反弹在即，可分批布局'; }
+
+  return {
+    score: combinedScore,
+    level,
+    advice,
+    hotMoney,
+    cycle,
+    quality
+  };
+}
+
+// ===== 15. 长期价值分析引擎 =====
+
+// 15.1 行业景气度分析
+function analyzeIndustryProsperity(data) {
+  const sectors = data.sectorRankHistory || data.sectorRank || [];
+  if (!sectors.length) return { industries: [], description: '无数据', avgProsperity: 50 };
+
+  const industries = sectors.map(s => {
+    const today = s.changePct || 0;
+    const d5 = s.changePct5d || s.change5d || 0;
+    const d20 = s.changePct20d || s.change20d || 0;
+
+    // 景气度 = 短期(30%) + 中期(30%) + 长期(40%)
+    let prosperity = 50;
+    prosperity += (today > 2 ? 8 : today > 0 ? 4 : today > -2 ? -3 : -8) * 0.3;
+    prosperity += (d5 > 5 ? 12 : d5 > 0 ? 6 : d5 > -5 ? -5 : -12) * 0.3;
+    prosperity += (d20 > 15 ? 15 : d20 > 5 ? 10 : d20 > 0 ? 4 : d20 > -10 ? -6 : -15) * 0.4;
+    prosperity = Math.max(0, Math.min(100, Math.round(prosperity)));
+
+    // 趋势判断
+    let trend = '震荡';
+    if (today > 0 && d5 > 0 && d20 > 0) trend = '上升';
+    else if (today < 0 && d5 < 0 && d20 < 0) trend = '下降';
+    else if (d20 > 0 && today < 0) trend = '回调';
+    else if (d20 < 0 && today > 0) trend = '反弹';
+
+    return {
+      name: s.name,
+      code: s.code,
+      prosperity,
+      trend,
+      today, d5, d20,
+      isHot: today > 3,
+      isSustained: d5 > 0 && d20 > 0
+    };
+  });
+
+  industries.sort((a, b) => b.prosperity - a.prosperity);
+  const avgProsperity = Math.round(industries.reduce((sum, s) => sum + s.prosperity, 0) / industries.length);
+
+  let description = '';
+  if (avgProsperity >= 65) description = '行业整体景气度较高，多数板块处于上升通道';
+  else if (avgProsperity >= 50) description = '行业景气度中性，结构分化明显';
+  else if (avgProsperity >= 35) description = '行业景气度偏低，多数板块走弱';
+  else description = '行业景气度低迷，系统性下行风险大';
+
+  return { industries: industries.slice(0, 15), avgProsperity, description };
+}
+
+// 15.2 价值-成长风格分析
+function analyzeValueGrowthStyle(data) {
+  const sectors = data.sectorRank || [];
+  if (!sectors.length) return { description: '无数据', valueScore: 50, growthScore: 50, dominant: '均衡' };
+
+  // 价值板块：银行、保险、地产、煤炭、钢铁、公用事业、交通运输、建筑装饰
+  const valueSectors = ['银行', '保险', '地产', '煤炭', '钢铁', '电力', '公用事业', '交通', '建筑装饰'];
+  // 成长板块：电子、半导体、计算机、通信、传媒、军工、新能源、医药生物
+  const growthSectors = ['电子', '半导体', '计算机', '通信', '传媒', '国防军工', '新能源', '医药', '生物'];
+
+  let valueTotal = 0, valueCount = 0;
+  let growthTotal = 0, growthCount = 0;
+
+  sectors.forEach(s => {
+    const isValue = valueSectors.some(v => s.name.includes(v) || v.includes(s.name));
+    const isGrowth = growthSectors.some(g => s.name.includes(g) || g.includes(s.name));
+    if (isValue) { valueTotal += s.changePct; valueCount++; }
+    if (isGrowth) { growthTotal += s.changePct; growthCount++; }
+  });
+
+  const valueAvg = valueCount > 0 ? valueTotal / valueCount : 0;
+  const growthAvg = growthCount > 0 ? growthTotal / growthCount : 0;
+  const diff = growthAvg - valueAvg;
+
+  // 评分：将涨跌幅映射到0-100
+  const valueScore = Math.max(0, Math.min(100, Math.round(50 + valueAvg * 5)));
+  const growthScore = Math.max(0, Math.min(100, Math.round(50 + growthAvg * 5)));
+
+  let dominant = '均衡';
+  let description = '';
+  if (diff > 2) { dominant = '成长占优'; description = `成长板块平均涨${growthAvg.toFixed(2)}%，显著强于价值板块${valueAvg.toFixed(2)}%，市场偏好成长股`; }
+  else if (diff < -2) { dominant = '价值占优'; description = `价值板块平均涨${valueAvg.toFixed(2)}%，显著强于成长板块${growthAvg.toFixed(2)}%，市场偏好价值股`; }
+  else { dominant = '均衡'; description = `价值(${valueAvg.toFixed(2)}%)与成长(${growthAvg.toFixed(2)}%)表现接近，风格均衡`; }
+
+  return {
+    valueScore, growthScore, dominant, description,
+    valueAvg: valueAvg.toFixed(2),
+    growthAvg: growthAvg.toFixed(2),
+    diff: diff.toFixed(2),
+    valueCount, growthCount
+  };
+}
+
+// 15.3 北向资金长线信号分析
+function analyzeNorthboundSignal(data) {
+  const nb = data.northbound;
+  if (!nb || !nb.latest) return { description: '北向资金数据不可用', signal: '无数据', netFlow: 0, trend: '未知' };
+
+  const latest = nb.latest.total / 1e8;
+  const series = nb.series || [];
+
+  // 计算近5日/20日趋势（如果有分钟数据）
+  let trend = '平稳';
+  let cumulative = latest;
+
+  if (series.length > 10) {
+    const recent = series.slice(-20);
+    const prev = series.slice(-40, -20);
+    const recentAvg = recent.reduce((sum, s) => sum + s.total, 0) / recent.length / 1e8;
+    const prevAvg = prev.length > 0 ? prev.reduce((sum, s) => sum + s.total, 0) / prev.length / 1e8 : 0;
+
+    if (recentAvg > prevAvg * 1.5 && recentAvg > 0) trend = '加速流入';
+    else if (recentAvg > prevAvg && recentAvg > 0) trend = '持续流入';
+    else if (recentAvg < prevAvg * 0.5 && recentAvg < 0) trend = '加速流出';
+    else if (recentAvg < prevAvg && recentAvg < 0) trend = '持续流出';
+    else if (recentAvg > 0) trend = '温和流入';
+    else trend = '温和流出';
+  }
+
+  let signal = '中性';
+  let description = '';
+  let advice = '';
+
+  if (latest > 80) { signal = '强烈看多'; description = `北向净流入${latest.toFixed(1)}亿，外资强烈看多A股`; advice = '跟随外资，增配核心资产'; }
+  else if (latest > 30) { signal = '偏多'; description = `北向净流入${latest.toFixed(1)}亿，外资态度积极`; advice = '可适度跟随加仓'; }
+  else if (latest > 0) { signal = '温和偏多'; description = `北向净流入${latest.toFixed(1)}亿，外资小幅流入`; advice = '观望为主'; }
+  else if (latest > -30) { signal = '温和偏空'; description = `北向净流出${Math.abs(latest).toFixed(1)}亿，外资小幅撤离`; advice = '谨慎操作'; }
+  else if (latest > -80) { signal = '偏空'; description = `北向净流出${Math.abs(latest).toFixed(1)}亿，外资态度消极`; advice = '降低仓位'; }
+  else { signal = '强烈看空'; description = `北向净流出${Math.abs(latest).toFixed(1)}亿，外资大幅撤离`; advice = '减仓避险'; }
+
+  return { signal, description, advice, netFlow: latest, trend, cumulative };
+}
+
+// 15.4 行业生命周期定位
+function analyzeIndustryLifecycle(data) {
+  const sectors = data.sectorRankHistory || data.sectorRank || [];
+  if (!sectors.length) return { lifecycle: [], description: '无数据' };
+
+  const lifecycle = sectors.map(s => {
+    const today = s.changePct || 0;
+    const d5 = s.changePct5d || s.change5d || 0;
+    const d20 = s.changePct20d || s.change20d || 0;
+
+    let stage = '成熟期';
+    let stageDesc = '';
+    let potential = '中性';
+
+    // 导入期：今日涨幅大但20日涨幅小（新热点启动）
+    if (today > 3 && d20 < 5 && d5 < 5) {
+      stage = '导入期'; stageDesc = '新热点启动，关注持续性'; potential = '高弹性';
+    }
+    // 成长期：今日、5日、20日都在涨
+    else if (today > 0 && d5 > 2 && d20 > 5) {
+      stage = '成长期'; stageDesc = '趋势确立，主力持续流入'; potential = '高';
+    }
+    // 加速期：涨幅加速
+    else if (today > d5 / 5 && d5 > d20 / 20 && today > 2) {
+      stage = '加速期'; stageDesc = '情绪推动加速上涨，注意高位风险'; potential = '高但风险大';
+    }
+    // 成熟期：涨幅放缓但仍有趋势
+    else if (d20 > 0 && today < d5 / 5) {
+      stage = '成熟期'; stageDesc = '涨幅放缓，趋势走平'; potential = '低';
+    }
+    // 衰退期：持续下跌
+    else if (today < 0 && d5 < 0 && d20 < 0) {
+      stage = '衰退期'; stageDesc = '趋势向下，资金持续流出'; potential = '回避';
+    }
+    // 回暖期：长期跌但短期反弹
+    else if (d20 < 0 && today > 0) {
+      stage = '回暖期'; stageDesc = '超跌反弹，持续性待观察'; potential = '博弈型';
+    }
+    else {
+      stage = '震荡期'; stageDesc = '方向不明，等待选择'; potential = '中性';
+    }
+
+    return { name: s.name, code: s.code, stage, stageDesc, potential, today, d5, d20 };
+  });
+
+  // 按阶段分类统计
+  const stageCount = {};
+  lifecycle.forEach(s => { stageCount[s.stage] = (stageCount[s.stage] || 0) + 1; });
+
+  const growthCount = (stageCount['导入期'] || 0) + (stageCount['成长期'] || 0) + (stageCount['加速期'] || 0);
+  const declineCount = (stageCount['衰退期'] || 0);
+  const matureCount = (stageCount['成熟期'] || 0) + (stageCount['震荡期'] || 0);
+
+  let description = '';
+  if (growthCount > matureCount && growthCount > declineCount) description = '市场以成长和导入阶段为主，整体处于扩张期，机会较多';
+  else if (declineCount > matureCount) description = '市场以衰退阶段为主，整体处于收缩期，风险较大';
+  else if (matureCount > growthCount) description = '市场以成熟和震荡阶段为主，缺乏明确方向';
+  else description = '市场各阶段分布均衡，结构性行情为主';
+
+  return { lifecycle: lifecycle.slice(0, 15), stageCount, description, growthCount, declineCount, matureCount };
+}
+
+// 15.5 综合长期价值分析
+function analyzeLongTermValue(data) {
+  const prosperity = analyzeIndustryProsperity(data);
+  const style = analyzeValueGrowthStyle(data);
+  const northbound = analyzeNorthboundSignal(data);
+  const lifecycle = analyzeIndustryLifecycle(data);
+
+  // 综合价值评分
+  let valueScore = 50;
+  valueScore += (prosperity.avgProsperity - 50) * 0.3;
+  valueScore += (northbound.netFlow > 30 ? 8 : northbound.netFlow > 0 ? 4 : northbound.netFlow > -30 ? -4 : -8);
+  valueScore += (style.dominant === '价值占优' ? 5 : style.dominant === '成长占优' ? 3 : 0);
+  valueScore += (lifecycle.growthCount > lifecycle.declineCount ? 6 : lifecycle.growthCount < lifecycle.declineCount ? -6 : 0);
+  valueScore = Math.max(0, Math.min(100, Math.round(valueScore)));
+
+  let level = '中性';
+  let advice = '';
+  if (valueScore >= 70) { level = '高价值区间'; advice = '当前市场具备较好的中长期投资价值，适合逢低布局优质标的'; }
+  else if (valueScore >= 55) { level = '价值偏高'; advice = '市场整体价值尚可，可适度配置，关注景气度向上的行业'; }
+  else if (valueScore >= 40) { level = '中性'; advice = '市场价值中性，结构分化，精选行业和个股'; }
+  else if (valueScore >= 25) { level = '价值偏低'; advice = '市场整体估值偏高或基本面偏弱，控制仓位'; }
+  else { level = '低价值区间'; advice = '市场缺乏投资价值，以防御为主'; }
+
+  return {
+    score: valueScore,
+    level,
+    advice,
+    prosperity,
+    style,
+    northbound,
+    lifecycle
+  };
+}
+
 async function fetchAllMarketDataWithAnalysis() {
   const data = await fetchAllMarketData();
 
@@ -1643,6 +2084,9 @@ async function fetchAllMarketDataWithAnalysis() {
       };
     }).sort((a, b) => b.score - a.score);
   }
+
+  data.analysis.shortTermSentiment = analyzeShortTermSentiment(data);
+  data.analysis.longTermValue = analyzeLongTermValue(data);
 
   data.analysis.fullReport = generateFullReport(data);
 

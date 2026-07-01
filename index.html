@@ -257,6 +257,69 @@
       grid-template-columns: 24px 1fr 70px 90px;
     }
 
+    .rank-item.with-history {
+      grid-template-columns: 24px 1fr 70px 110px;
+    }
+
+    .rank-hist {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+
+    /* 趋势分析 */
+    .trend-list { display: flex; flex-direction: column; gap: 8px; }
+    .trend-item {
+      padding: 10px 12px;
+      background: var(--bg-soft);
+      border-radius: 6px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .trend-label {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .trend-label.up { background: var(--up-bg); color: var(--up); }
+    .trend-label.down { background: var(--down-bg); color: var(--down); }
+
+    /* 连板梯队 */
+    .ladder-list { display: flex; flex-direction: column; gap: 8px; }
+    .ladder-item {
+      display: grid;
+      grid-template-columns: 60px 1fr 40px;
+      align-items: center;
+      gap: 10px;
+    }
+    .ladder-height {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+    .ladder-bar-bg {
+      height: 20px;
+      background: var(--bg-soft);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .ladder-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--up), #f87171);
+      border-radius: 4px;
+      transition: width 0.5s;
+    }
+    .ladder-count {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--up);
+      text-align: left;
+    }
+
     .rank-no {
       width: 20px;
       height: 20px;
@@ -463,9 +526,12 @@
     <!-- 标签页 -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="sector">📊 板块轮动</button>
+      <button class="tab-btn" data-tab="concept">🏷️ 概念板块</button>
+      <button class="tab-btn" data-tab="history">📈 历史对比</button>
       <button class="tab-btn" data-tab="fund">💰 资金流向</button>
       <button class="tab-btn" data-tab="inst">🏛️ 机构动向</button>
       <button class="tab-btn" data-tab="signal">🚨 市场信号</button>
+      <button class="tab-btn" data-tab="depth">🔥 涨跌停深度</button>
       <button class="tab-btn" data-tab="report">📝 分析报告</button>
     </div>
 
@@ -490,6 +556,40 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 概念板块 -->
+    <div class="tab-panel" id="panel-concept">
+      <div class="card">
+        <div class="card-title">热门概念板块涨跌幅 TOP15</div>
+        <div class="grid-2">
+          <div>
+            <div class="chart-container">
+              <canvas id="chart-concept"></canvas>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="background: var(--bg-soft);">
+              <div class="card-title">概念板块 TOP10（含5日趋势）</div>
+              <div class="rank-list" id="concept-top10"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史对比 -->
+    <div class="tab-panel" id="panel-history">
+      <div class="card">
+        <div class="card-title">行业板块涨跌幅对比（今日 vs 5日 vs 20日）</div>
+        <div class="chart-container" style="height: 480px;">
+          <canvas id="chart-history"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">趋势分析</div>
+        <div class="trend-list" id="trend-analysis"></div>
       </div>
     </div>
 
@@ -535,6 +635,12 @@
           <canvas id="chart-northbound"></canvas>
         </div>
       </div>
+      <div class="card">
+        <div class="card-title">龙虎榜上榜个股</div>
+        <div class="rank-list" id="dragon-tiger-list">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
     </div>
 
     <!-- 市场信号 -->
@@ -571,6 +677,54 @@
         <div class="card">
           <div class="card-title">涨停板 TOP10</div>
           <div class="zt-list" id="zt-list">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 涨跌停深度 -->
+    <div class="tab-panel" id="panel-depth">
+      <div class="card">
+        <div class="card-title">涨跌停深度统计</div>
+        <div class="mood-stats">
+          <div class="mood-stat">
+            <div class="mood-stat-num up" id="broken-count">--</div>
+            <div class="mood-stat-label">炸板家数</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="broken-rate">--</div>
+            <div class="mood-stat-label">炸板率</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num up" id="first-board-count">--</div>
+            <div class="mood-stat-label">首板家数</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="multi-board-count">--</div>
+            <div class="mood-stat-label">连板家数</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num" style="color:var(--warn)" id="max-ladder-height">--</div>
+            <div class="mood-stat-label">最高连板</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num"><span class="mood-badge neutral" id="broken-mood">--</span></div>
+            <div class="mood-stat-label">打板情绪</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">连板梯队分布</div>
+          <div class="ladder-list" id="ladder-list">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">炸板个股 TOP10</div>
+          <div class="zt-list" id="broken-list">
             <div class="empty-tip">加载中...</div>
           </div>
         </div>

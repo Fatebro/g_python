@@ -239,17 +239,142 @@ async function getStockFundFlow(sortField, sortDir, limit) {
   }));
 }
 
-// ===== 统一数据采集入口 =====
+// ===== 8. 获取概念板块涨跌幅排行（含5日/20日历史对比）=====
+// fs=m:90+t:3 为概念板块
+// f25:5日涨跌幅 f183:20日涨跌幅 f62:主力净流入
+const CONCEPT_SECTOR_FS = 'm:90+t:3';
+const CONCEPT_PARAMS = 'f2,f3,f12,f14,f25,f183,f62,f184,f6';
+
+async function getConceptSectorRank(sortField, sortDir, limit) {
+  sortField = sortField || 'f3';
+  sortDir = sortDir || 1;
+  limit = limit || 20;
+  const url = `${EM_API_BASE}/qt/clist/get?pn=1&pz=${limit}&po=${sortDir}&np=1&ut=${EM_UT}&fltt=2&invt=2&fid=${sortField}&fs=${CONCEPT_SECTOR_FS}&fields=${CONCEPT_PARAMS}`;
+  const res = await jsonp(url);
+  if (!res || !res.data || !res.data.diff) return [];
+  return res.data.diff.map(item => ({
+    code: item.f12,
+    name: item.f14,
+    changePct: item.f3,
+    change5d: item.f25,
+    change20d: item.f183,
+    mainNetInflow: item.f62,
+    mainNetInflowPct: item.f184,
+    turnover: item.f6
+  }));
+}
+
+// ===== 9. 带历史对比的行业板块排行（5日/20日）=====
+const SECTOR_HISTORY_PARAMS = 'f2,f3,f12,f14,f25,f183,f62,f184,f6';
+async function getSectorRankWithHistory(sortField, sortDir, limit) {
+  sortField = sortField || 'f3';
+  sortDir = sortDir || 1;
+  limit = limit || 31;
+  const url = `${EM_API_BASE}/qt/clist/get?pn=1&pz=${limit}&po=${sortDir}&np=1&ut=${EM_UT}&fltt=2&invt=2&fid=${sortField}&fs=${SW_SECTOR_FS}&fields=${SECTOR_HISTORY_PARAMS}`;
+  const res = await jsonp(url);
+  if (!res || !res.data || !res.data.diff) return [];
+  return res.data.diff.map(item => ({
+    code: item.f12,
+    name: item.f14,
+    price: item.f2,
+    changePct: item.f3,
+    change5d: item.f25,
+    change20d: item.f183,
+    mainNetInflow: item.f62,
+    mainNetInflowPct: item.f184,
+    turnover: item.f6
+  }));
+}
+
+// ===== 10. 获取龙虎榜数据（机构席位）=====
+async function getDragonTigerList(date, pageIndex, pageSize) {
+  date = date || getTodayStr();
+  pageIndex = pageIndex || 0;
+  pageSize = pageSize || 20;
+  const url = `${EM_EX_BASE}/getLHBStock?ut=${EM_UT3}&dpt=wz.ztzt&Pageindex=${pageIndex}&pagesize=${pageSize}&sort=fbt%3Aasc&date=${date}`;
+  const res = await jsonp(url);
+  if (!res || !res.data || !res.data.pool) return { total: 0, list: [] };
+  return {
+    total: res.data.tc || 0,
+    date: res.data.qdate,
+    list: res.data.pool.map(item => ({
+      code: item.c,
+      name: item.n,
+      price: item.p / 100,
+      changePct: item.zdp,
+      amount: item.amount,
+      turnoverRate: item.hs,
+      firstLimitTime: item.fbt,
+      reason: item.zttj ? item.zttj.days : 0,
+      industry: item.hybk
+    }))
+  };
+}
+
+// ===== 11. 获取炸板池（曾涨停但打开的股票）=====
+async function getBrokenLimitPool(date, pageIndex, pageSize) {
+  date = date || getTodayStr();
+  pageIndex = pageIndex || 0;
+  pageSize = pageSize || 50;
+  const url = `${EM_EX_BASE}/getTopicZBPool?ut=${EM_UT3}&dpt=wz.ztzt&Pageindex=${pageIndex}&pagesize=${pageSize}&sort=fbt%3Aasc&date=${date}`;
+  const res = await jsonp(url);
+  if (!res || !res.data || !res.data.pool) return { total: 0, list: [] };
+  return {
+    total: res.data.tc || 0,
+    date: res.data.qdate,
+    list: res.data.pool.map(item => ({
+      code: item.c,
+      name: item.n,
+      price: item.p / 100,
+      limitPrice: item.ztp / 100,
+      changePct: item.zdp,
+      amount: item.amount,
+      turnoverRate: item.hs,
+      firstLimitTime: item.fbt,
+      limitOpenCount: item.zbc,
+      amplitude: item.zf,
+      industry: item.hybk
+    }))
+  };
+}
+
+// ===== 12. 从涨停池统计连板梯队 =====
+function analyzeLimitLadder(limitUpList) {
+  if (!limitUpList || !limitUpList.length) return { ladder: [], firstBoardCount: 0, multiBoardCount: 0, maxHeight: 0 };
+  const ladderMap = {};
+  let firstBoard = 0;
+  let multiBoard = 0;
+  let maxH = 0;
+  for (const s of limitUpList) {
+    const days = s.limitDays || 1;
+    ladderMap[days] = (ladderMap[days] || 0) + 1;
+    if (days === 1) firstBoard++;
+    else multiBoard++;
+    if (days > maxH) maxH = days;
+  }
+  const ladder = Object.keys(ladderMap).map(k => ({
+    height: Number(k),
+    count: ladderMap[k]
+  })).sort((a, b) => a.height - b.height);
+  return { ladder, firstBoardCount: firstBoard, multiBoardCount: multiBoard, maxHeight: maxH };
+}
+
+// ===== 统一数据采集入口（扩展版）=====
 async function fetchAllMarketData() {
   const result = {
     timestamp: new Date().toISOString(),
     status: 'loading',
     marketIndex: null,
     sectorRank: null,
+    sectorRankHistory: null,
+    conceptSector: null,
     sectorFundFlow: null,
     northbound: null,
     limitUp: null,
     limitDown: null,
+    brokenLimit: null,
+    limitLadder: null,
+    dragonTiger: null,
     stockFundInflow: null,
     stockFundOutflow: null
   };
@@ -270,6 +395,20 @@ async function fetchAllMarketData() {
       .catch(err => { console.warn('板块排行获取失败:', err); result.sectorRank = []; })
   );
 
+  // 板块历史对比（5日/20日）
+  promises.push(
+    getSectorRankWithHistory('f3', 1, 31)
+      .then(data => { result.sectorRankHistory = data; })
+      .catch(err => { console.warn('板块历史对比获取失败:', err); result.sectorRankHistory = []; })
+  );
+
+  // 概念板块
+  promises.push(
+    getConceptSectorRank('f3', 1, 20)
+      .then(data => { result.conceptSector = data; })
+      .catch(err => { console.warn('概念板块获取失败:', err); result.conceptSector = []; })
+  );
+
   // 板块资金流向
   promises.push(
     getSectorFundFlow('f62', 1, 31)
@@ -287,15 +426,32 @@ async function fetchAllMarketData() {
   // 涨跌停
   const today = getTodayStr();
   promises.push(
-    getLimitUpPool(today, 0, 50)
-      .then(data => { result.limitUp = data; })
-      .catch(err => { console.warn('涨停池获取失败:', err); result.limitUp = { total: 0, list: [] }; })
+    getLimitUpPool(today, 0, 100)
+      .then(data => {
+        result.limitUp = data;
+        result.limitLadder = analyzeLimitLadder(data.list);
+      })
+      .catch(err => { console.warn('涨停池获取失败:', err); result.limitUp = { total: 0, list: [] }; result.limitLadder = { ladder: [], firstBoardCount: 0, multiBoardCount: 0, maxHeight: 0 }; })
   );
 
   promises.push(
     getLimitDownPool(today, 0, 50)
       .then(data => { result.limitDown = data; })
       .catch(err => { console.warn('跌停池获取失败:', err); result.limitDown = { total: 0, list: [] }; })
+  );
+
+  // 炸板池
+  promises.push(
+    getBrokenLimitPool(today, 0, 50)
+      .then(data => { result.brokenLimit = data; })
+      .catch(err => { console.warn('炸板池获取失败:', err); result.brokenLimit = { total: 0, list: [] }; })
+  );
+
+  // 龙虎榜
+  promises.push(
+    getDragonTigerList(today, 0, 20)
+      .then(data => { result.dragonTiger = data; })
+      .catch(err => { console.warn('龙虎榜获取失败:', err); result.dragonTiger = { total: 0, list: [] }; })
   );
 
   // 个股资金净流入TOP
@@ -321,12 +477,17 @@ async function fetchAllMarketData() {
 window.MarketDataAPI = {
   jsonp,
   getSectorRank,
+  getSectorRankWithHistory,
+  getConceptSectorRank,
   getSectorFundFlow,
   getNorthboundFlow,
   getLimitUpPool,
   getLimitDownPool,
+  getBrokenLimitPool,
+  getDragonTigerList,
   getMarketIndex,
   getStockFundFlow,
+  analyzeLimitLadder,
   fetchAllMarketData,
   formatPct,
   formatAmount,

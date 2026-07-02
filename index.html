@@ -330,6 +330,30 @@
       border: 1px solid rgba(34, 211, 238, 0.3);
     }
 
+    /* 信号驱动资金明细：每个信号内联展示触发它的具体资金数据 */
+    .signal-with-evidence { flex-direction: column; align-items: stretch; gap: 10px; }
+    .signal-head { display: flex; gap: 12px; }
+    .signal-head-text { flex: 1; }
+    .signal-implication {
+      font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-top: 4px;
+      padding: 6px 10px; background: rgba(96,165,250,0.06); border-radius: 5px;
+      border-left: 2px solid var(--accent);
+    }
+    .signal-evidence {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 6px; padding-top: 6px; border-top: 1px dashed var(--border);
+    }
+    .ev-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 10px; background: var(--bg-soft); border-radius: 5px;
+      font-size: 12px;
+    }
+    .ev-name { font-weight: 600; color: var(--text); }
+    .ev-sub { font-size: 10px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ev-val { font-weight: 700; font-size: 12px; white-space: nowrap; }
+    .ev-val.up { color: var(--up); }
+    .ev-val.down { color: var(--down); }
+
     /* ===== 情绪指标 ===== */
     .mood-stats {
       display: grid;
@@ -1461,8 +1485,19 @@
       </div>
     </div>
 
-    <!-- 市场动态 -->
+    <!-- 市场动态（按决策流程重组：信号触发 → 情绪背景 → 个股目标 → 资金图表 → 操作建议 → 全球参考）-->
     <div class="tab-panel" id="panel-market">
+
+      <!-- ① 决策触发：反常/突发信号 + 内联资金明细 -->
+      <div class="card">
+        <div class="card-title">🔍 反常信号 / 突发信号（与资金流入同步）<span class="horizon-tag">思路② · 数据化反常</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">每个信号下方内联展示触发它的具体板块/个股资金数据。随资金流入同步刷新。</div>
+        <div class="signal-list scroll-list" id="abnormal-signal-list" style="max-height:620px;">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+
+      <!-- ② 情绪背景 -->
       <div class="card">
         <div class="card-title">⚡ 市场情绪分析 <span class="horizon-tag">思路② · 1周-1月</span></div>
         <div class="mood-stats">
@@ -1485,6 +1520,30 @@
         </div>
       </div>
 
+      <!-- ③ 个股目标：龙虎榜 + 涨停板（左右对照）-->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🐉 个股资金龙虎榜 TOP5</div>
+          <div class="fund-dual">
+            <div class="fund-col">
+              <div class="fund-col-title up">主力净流入</div>
+              <div class="rank-list" id="stock-inflow-list"></div>
+            </div>
+            <div class="fund-col">
+              <div class="fund-col-title down">主力净流出</div>
+              <div class="rank-list" id="stock-outflow-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🔥 涨停板 TOP10</div>
+          <div class="zt-list scroll-list" id="zt-list" style="max-height:340px;">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ④ 资金图表支撑 -->
       <div class="grid-2">
         <div class="card">
           <div class="card-title">💰 行业主力资金流向</div>
@@ -1514,43 +1573,15 @@
         </div>
       </div>
 
+      <!-- ⑤ 操作建议（结论先行）-->
       <div class="card">
-        <div class="card-title">🐉 个股资金龙虎榜 TOP5</div>
-        <div class="fund-dual">
-          <div class="fund-col">
-            <div class="fund-col-title up">主力净流入</div>
-            <div class="rank-list" id="stock-inflow-list"></div>
-          </div>
-          <div class="fund-col">
-            <div class="fund-col-title down">主力净流出</div>
-            <div class="rank-list" id="stock-outflow-list"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🔍 反常信号 / 突发信号（与资金流入同步）<span class="horizon-tag">思路② · 数据化反常</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">基于资金流向自动检测：板块巨额流入/流出、价跌资金进背离、价涨资金出出货、个股巨额流入、北向异动、涨跌停极端。随资金流入同步刷新。</div>
-        <div class="signal-list scroll-list" id="abnormal-signal-list" style="max-height:520px;">
+        <div class="card-title">💡 操作建议（基于上方信号 + 资金）</div>
+        <div id="short-term-advice" class="text-report">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
 
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">🚨 特殊信号检测</div>
-          <div class="signal-list" id="signal-list">
-            <div class="empty-tip">加载中...</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🔥 涨停板 TOP10</div>
-          <div class="zt-list" id="zt-list">
-            <div class="empty-tip">加载中...</div>
-          </div>
-        </div>
-      </div>
-
+      <!-- ⑥ 全球参考（背景信息）-->
       <div class="card">
         <div class="card-title">🌍 全球主要市场指数</div>
         <div class="market-index-grid global" id="global-market-grid">
@@ -1560,13 +1591,6 @@
           <div class="index-card"><div class="idx-name">恒生指数</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
           <div class="index-card"><div class="idx-name">日经225</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
           <div class="index-card"><div class="idx-name">黄金/美元</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">💡 操作建议</div>
-        <div id="short-term-advice" class="text-report">
-          <div class="empty-tip">加载中...</div>
         </div>
       </div>
     </div>

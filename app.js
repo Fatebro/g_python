@@ -501,10 +501,11 @@ function generateGlobalAShareView(globalData) {
 let currentSelectedSector = null;
 
 function renderSectorRotation(data) {
-  if (!data || !data.length) return;
+  const sectorData = (data && data.sectorRank) ? data.sectorRank : (Array.isArray(data) ? data : []);
+  if (!sectorData || !sectorData.length) return;
 
-  const top10 = [...data].sort((a, b) => b.changePct - a.changePct).slice(0, 10);
-  const bottom10 = [...data].sort((a, b) => a.changePct - b.changePct).slice(0, 10).reverse();
+  const top10 = [...sectorData].sort((a, b) => b.changePct - a.changePct).slice(0, 10);
+  const bottom10 = [...sectorData].sort((a, b) => a.changePct - b.changePct).slice(0, 10).reverse();
 
   const labels = [...bottom10.map(d => d.name), ...top10.map(d => d.name)];
   const values = [...bottom10.map(d => d.changePct), ...top10.map(d => d.changePct)];
@@ -562,7 +563,7 @@ function renderSectorRotation(data) {
   });
 
   // 领涨领跌完整列表（可点击 + 可滑动）
-  const sortedAll = [...data].sort((a, b) => b.changePct - a.changePct);
+  const sortedAll = [...sectorData].sort((a, b) => b.changePct - a.changePct);
   const topList = sortedAll.slice(0, 10);
   const botList = sortedAll.slice(-10).reverse();
 
@@ -1644,17 +1645,20 @@ function renderMarketSignals(data) {
     </div>`
   ).join('') : '<div class="empty-tip">暂无涨停数据</div>';
 
-  // 特殊信号检测（涨跌停比、北向异动等）
+  // 特殊信号检测（涨跌停比、北向异动等）— 已合并进反常信号卡片，此处仅做安全兜底
   const signals = detectSpecialSignals();
-  $('signal-list').innerHTML = signals.length ? signals.map(s =>
-    `<div class="signal-item ${s.level}">
-      <span class="signal-icon">${s.level === 'danger' ? '⚠' : s.level === 'warn' ? '⚡' : '💡'}</span>
-      <div>
-        <div class="signal-title">${s.title}</div>
-        <div class="signal-desc">${s.desc}</div>
-      </div>
-    </div>`
-  ).join('') : '<div class="empty-tip">暂无明显特殊信号</div>';
+  const signalListEl = document.getElementById('signal-list');
+  if (signalListEl) {
+    signalListEl.innerHTML = signals.length ? signals.map(s =>
+      `<div class="signal-item ${s.level}">
+        <span class="signal-icon">${s.level === 'danger' ? '⚠' : s.level === 'warn' ? '⚡' : '💡'}</span>
+        <div>
+          <div class="signal-title">${s.title}</div>
+          <div class="signal-desc">${s.desc}</div>
+        </div>
+      </div>`
+    ).join('') : '<div class="empty-tip">暂无明显特殊信号</div>';
+  }
 
   // ★ 反常信号 + 突发信号（与资金流入同步）
   renderAbnormalSignals(data);
@@ -2247,8 +2251,9 @@ async function loadData() {
 
     const now = new Date();
     $('update-time').textContent = now.toLocaleTimeString('zh-CN');
-    $('status-text').textContent = '数据已更新';
-    $('status-dot').className = 'status-dot ready';
+    const isMock = data.isMock === true;
+    $('status-text').textContent = isMock ? '演示数据（实时接口不可用）' : '数据已更新';
+    $('status-dot').className = isMock ? 'status-dot loading' : 'status-dot ready';
   } catch (err) {
     console.error('加载失败:', err);
     $('status-text').textContent = '加载失败: ' + (err.message || err);

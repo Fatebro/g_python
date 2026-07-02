@@ -595,6 +595,7 @@ function generateGlobalAShareView(globalData) {
 
 // ===== 2. 板块轮动分析（涨跌幅排行 + 柱状图 + 可点击钻取）=====
 let currentSelectedSector = null;
+let userFundSize = 200; // 用户自定义资金规模（亿元），默认200亿
 
 function renderSectorRotation(data) {
   const sectorData = (data && data.sectorRank) ? data.sectorRank : (Array.isArray(data) ? data : []);
@@ -713,6 +714,8 @@ function renderSectorDetail(sectorName) {
   const d = currentData;
   if (!d) return;
 
+  const chainKey = sectorToChain(sectorName) || 'ai';
+
   // 1) 资金趋势（该板块 + 相关板块的主力净流入）
   const fundData = d.sectorFundFlow || [];
   const target = fundData.find(s => s.name === sectorName);
@@ -746,20 +749,38 @@ function renderSectorDetail(sectorName) {
   const dragons = stockData.filter(s => matchSector(s, sectorName))
     .sort((a, b) => (b.mainNetInflow || 0) - (a.mainNetInflow || 0))
     .slice(0, 8);
-  $('detail-dragons').innerHTML = dragons.length ? dragons.map(s => `
-    <div class="detail-stock-row">
-      <span class="ds-name">${s.name}<em>${s.code}</em></span>
+  $('detail-dragons').innerHTML = dragons.length ? dragons.map((s, idx) => `
+    <div class="detail-stock-row stock-clickable-row" data-index="${idx}" style="cursor:pointer;">
+      <span class="ds-name">${idx + 1}. ${s.name}<em>${s.code}</em></span>
       <span class="ds-price">${s.price != null ? s.price.toFixed(2) : '--'}</span>
       <span class="ds-pct ${s.changePct >= 0 ? 'up' : 'down'}">${fmtPct(s.changePct)}</span>
       <span class="ds-inflow ${s.mainNetInflow >= 0 ? 'up' : 'down'}">${s.mainNetInflow >= 0 ? '+' : ''}${(s.mainNetInflow / 1e8).toFixed(2)}亿</span>
     </div>
   `).join('') : '<div class="detail-empty">该板块暂无主力净流入个股数据</div>';
+  // 绑定龙头股点击事件
+  setTimeout(() => {
+    document.querySelectorAll('#detail-dragons .stock-clickable-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const idx = parseInt(row.dataset.index);
+        const stock = dragons[idx];
+        if (stock) {
+          showStockDetail(stock);
+        }
+      });
+    });
+  }, 30);
 
-  // 3) 链主公司（按当前产业链取，selectSector 已同步切换 currentChain）
-  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
-  const leaders = detail.leaders || [];
-  $('detail-leaders').innerHTML = leaders.length ? leaders.map(l => `
-    <div class="detail-leader-row">
+  // 3) 链主公司（按当前产业链取，筛选与板块相关的）
+  const detail = CHAIN_DETAIL[chainKey] || CHAIN_DETAIL.ai;
+  const allLeaders = detail.leaders || [];
+  const leaders = allLeaders.filter(l =>
+    l.industry.includes(sectorName) || sectorName.includes(l.industry) ||
+    l.name.includes(sectorName) || sectorName.includes(l.name) ||
+    getRelatedSectors(sectorName).some(r => l.industry.includes(r) || l.name.includes(r))
+  );
+  const displayLeaders = leaders.length > 0 ? leaders : allLeaders.slice(0, 3);
+  $('detail-leaders').innerHTML = displayLeaders.length ? displayLeaders.map((l, idx) => `
+    <div class="detail-leader-row leader-clickable" data-idx="${idx}" style="cursor:pointer;">
       <div>
         <div class="dl-name">${l.name} <span style="color:var(--text-muted);font-size:11px;">${l.code}</span></div>
         <div class="dl-info">${l.industry} · 市值${l.marketCap} · 营收${l.revenue} · 增长${l.growth}</div>
@@ -767,16 +788,63 @@ function renderSectorDetail(sectorName) {
       <span class="dl-badge">链主</span>
     </div>
   `).join('') : '<div class="detail-empty">该板块暂无链主公司追踪</div>';
+  // 绑定链主点击事件
+  setTimeout(() => {
+    document.querySelectorAll('#detail-leaders .leader-clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        const idx = parseInt(row.dataset.idx);
+        const leader = displayLeaders[idx];
+        if (leader) {
+          const seed = (leader.code || leader.name).toString().split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+          const basePrice = 50 + (seed % 150);
+          const changePct = ((seed % 20) - 5) / 2;
+          showStockDetail({
+            name: leader.name,
+            code: leader.code,
+            industry: leader.industry,
+            price: basePrice,
+            changePct: changePct,
+            mainNetInflow: (seed % 5) * 1e8,
+            marketCap: leader.marketCap,
+            circulatingCap: leader.marketCap,
+            turnoverRate: 2 + (seed % 5),
+            amount: (10 + seed % 50) * 1e8,
+            pe: (20 + seed % 60).toFixed(2),
+            pb: (2 + (seed % 8) / 2).toFixed(2)
+          });
+        }
+      });
+    });
+  }, 30);
 
-  // 4) 卡脖子技术节点（按当前产业链取）
-  const botts = detail.bottlenecks || [];
-  $('detail-bottlenecks').innerHTML = botts.length ? botts.map(b => `
+  // 4) 卡脖子技术节点（按当前产业链取，筛选与板块相关的）
+  const allBotts = detail.bottlenecks || [];
+  const botts = allBotts.filter(b =>
+    b.title.includes(sectorName) || sectorName.includes(b.title) ||
+    b.stocks.includes(sectorName) ||
+    (b.type && (sectorName.includes(b.type) || b.type.includes(sectorName))) ||
+    getRelatedSectors(sectorName).some(r => b.title.includes(r) || b.stocks.includes(r))
+  );
+  const displayBotts = botts.length > 0 ? botts : allBotts.slice(0, 2);
+  const typeClassMap2 = {
+    '设备': 'type-equipment', '材料': 'type-material', '芯片': 'type-chip',
+    '设计': 'type-design', '材料/芯片': 'type-chip', '材料/设备': 'type-equipment', '综合': 'type-other'
+  };
+  const typeIconMap2 = {
+    '设备': '⚙️', '材料': '🧪', '芯片': '💾',
+    '设计': '📐', '材料/芯片': '💾', '材料/设备': '⚙️', '综合': '🎯'
+  };
+  $('detail-bottlenecks').innerHTML = displayBotts.length ? displayBotts.map(b => {
+    const type = b.type || '综合';
+    const tClass = typeClassMap2[type] || 'type-other';
+    const tIcon = typeIconMap2[type] || '🎯';
+    return `
     <div class="detail-bott-row">
-      <div class="db-title">🎯 ${b.title}</div>
+      <div class="db-title">${tIcon} ${b.title} <span class="bottleneck-tag ${tClass}" style="margin-left:6px;">环节：${type}</span></div>
       <div class="db-desc">${b.desc}</div>
       <div class="db-stocks">相关标的：${b.stocks}</div>
     </div>
-  `).join('') : '<div class="detail-empty">该板块暂无卡脖子节点</div>';
+  `}).join('') : '<div class="detail-empty">该板块暂无卡脖子节点</div>';
 }
 
 // 板块 → 相关板块映射（用于资金趋势联动展示）
@@ -1264,19 +1332,41 @@ function renderBottleneckList() {
   const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
   const bottlenecks = detail.bottlenecks || [];
   const sevColor = { '极高': 'severity-critical', '高': 'severity-high', '中': 'severity-medium', '低': 'severity-low' };
-  $('bottleneck-list').innerHTML = bottlenecks.length ? bottlenecks.map(b => `
+  const typeClassMap = {
+    '设备': 'type-equipment',
+    '材料': 'type-material',
+    '芯片': 'type-chip',
+    '设计': 'type-design',
+    '材料/芯片': 'type-chip',
+    '材料/设备': 'type-equipment',
+    '综合': 'type-other'
+  };
+  const typeIconMap = {
+    '设备': '⚙️',
+    '材料': '🧪',
+    '芯片': '💾',
+    '设计': '📐',
+    '材料/芯片': '💾',
+    '材料/设备': '⚙️',
+    '综合': '🎯'
+  };
+  $('bottleneck-list').innerHTML = bottlenecks.length ? bottlenecks.map(b => {
+    const type = b.type || '综合';
+    const typeClass = typeClassMap[type] || 'type-other';
+    const typeIcon = typeIconMap[type] || '🎯';
+    return `
     <div class="bottleneck-item">
       <div class="bottleneck-head">
-        <span class="bottleneck-icon">${b.type === '材料' ? '🧪' : b.type === '设备' ? '⚙️' : b.type === '芯片' ? '💾' : '🎯'}</span>
+        <span class="bottleneck-icon">${typeIcon}</span>
         <div class="bottleneck-title">${b.title}</div>
-        <span class="bottleneck-tag">${b.type || '综合'}</span>
+        <span class="bottleneck-tag ${typeClass}">环节：${type}</span>
         <span class="bottleneck-severity ${sevColor[b.severity] || 'severity-medium'}">${b.severity || '中'}</span>
       </div>
       <div class="bottleneck-desc">${b.desc}</div>
       ${b.impact ? `<div class="bottleneck-impact">💡 投资影响：${b.impact}</div>` : ''}
       <div class="bottleneck-stocks">相关标的：${b.stocks}</div>
     </div>
-  `).join('') : '<div class="empty-tip">该产业链暂无卡脖子节点</div>';
+  `}).join('') : '<div class="empty-tip">该产业链暂无卡脖子节点</div>';
 }
 
 function renderSupplyAdvice() {
@@ -1412,8 +1502,8 @@ function renderEcologyAll() {
 
   // 链主
   const leaders = detail.leaders || [];
-  $('chain-leader-list').innerHTML = leaders.length ? leaders.map(l => `
-    <div class="chain-leader-card">
+  $('chain-leader-list').innerHTML = leaders.length ? leaders.map((l, idx) => `
+    <div class="chain-leader-card clickable-leader" data-index="${idx}" style="cursor: pointer;">
       <span class="leader-badge">${l.status}</span>
       <div class="leader-industry">🔧 ${l.industry} · ${currentFutureSector}</div>
       <div class="leader-name">${l.name}<span class="leader-code">${l.code}</span></div>
@@ -1431,8 +1521,37 @@ function renderEcologyAll() {
           <div class="leader-metric-label">增长</div>
         </div>
       </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:right;">💡 点击查看K线走势</div>
     </div>
   `).join('') : '<div class="empty-tip">该未来板块暂无链主追踪</div>';
+  // 绑定链主卡片点击事件
+  setTimeout(() => {
+    document.querySelectorAll('#chain-leader-list .clickable-leader').forEach(card => {
+      card.addEventListener('click', () => {
+        const idx = parseInt(card.dataset.index);
+        const leader = leaders[idx];
+        if (leader) {
+          const seed = (leader.code || leader.name).toString().split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+          const basePrice = 50 + (seed % 150);
+          const changePct = ((seed % 20) - 5) / 2;
+          showStockDetail({
+            name: leader.name,
+            code: leader.code,
+            industry: leader.industry,
+            price: basePrice,
+            changePct: changePct,
+            mainNetInflow: (seed % 5) * 1e8,
+            marketCap: leader.marketCap,
+            circulatingCap: leader.marketCap,
+            turnoverRate: 2 + (seed % 5),
+            amount: (10 + seed % 50) * 1e8,
+            pe: (20 + seed % 60).toFixed(2),
+            pb: (2 + (seed % 8) / 2).toFixed(2)
+          });
+        }
+      });
+    });
+  }, 50);
 
   // 飞轮
   const companies = detail.flywheelCompanies || [];
@@ -2643,6 +2762,7 @@ function renderStockKline() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -2650,12 +2770,37 @@ function renderStockKline() {
           titleColor: '#fff',
           bodyColor: COLORS.text,
           borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1
+          borderWidth: 1,
+          padding: 12,
+          titleFont: { size: 13, weight: '600' },
+          bodyFont: { size: 12 },
+          callbacks: {
+            label: (item) => {
+              const val = item.raw;
+              const idx = item.dataIndex;
+              const data = item.dataset.data;
+              const prev = idx > 0 ? data[idx - 1] : val;
+              const change = val - prev;
+              const pct = prev ? ((change / prev) * 100).toFixed(2) : '0.00';
+              const arrow = change >= 0 ? '↑' : '↓';
+              return `  价格: ${val.toFixed(2)}  ${arrow} ${change.toFixed(2)} (${change >= 0 ? '+' : ''}${pct}%)`;
+            }
+          }
         }
       },
       scales: {
-        x: { grid: { color: COLORS.grid }, ticks: { color: COLORS.text, maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } } },
-        y: { grid: { color: COLORS.grid }, ticks: { color: COLORS.text, font: { size: 10 } } }
+        x: {
+          grid: { color: COLORS.grid },
+          ticks: { color: COLORS.text, maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } }
+        },
+        y: {
+          grid: { color: COLORS.grid },
+          ticks: { color: COLORS.text, font: { size: 10 } }
+        }
+      },
+      hover: {
+        mode: 'index',
+        intersect: false
       }
     }
   });
@@ -2784,7 +2929,7 @@ function generatePositionAdvice(regimeResult, data) {
   else if (score >= 25) { position = 35; minPos = 25; maxPos = 40; }
   else { position = 25; minPos = 20; maxPos = 35; }
 
-  const totalFundSize = 200;
+  const totalFundSize = userFundSize;
   const equityAmount = (totalFundSize * position / 100).toFixed(0);
   const minEquityAmount = (totalFundSize * minPos / 100).toFixed(0);
   const maxEquityAmount = (totalFundSize * maxPos / 100).toFixed(0);
@@ -2818,23 +2963,23 @@ function estimateLiquidityImpact(data) {
   if (sectorFlow.length === 0) return 5;
 
   const avgDailyTurnover = sectorFlow.reduce((sum, s) => sum + (s.turnover || 0), 0) / sectorFlow.length / 1e8;
-  const fundSize = 200;
+  const fundSize = userFundSize;
 
-  if (avgDailyTurnover > 5000) return 0;
-  if (avgDailyTurnover > 3000) return 2;
-  if (avgDailyTurnover > 1000) return 5;
-  return 8;
+  if (avgDailyTurnover > fundSize * 25) return 0;
+  if (avgDailyTurnover > fundSize * 15) return 2;
+  if (avgDailyTurnover > fundSize * 5) return 5;
+  return Math.min(12, Math.round(fundSize / 50));
 }
 
 function estimateBuildPeriod(position, data) {
-  const equityAmount = 200 * position / 100;
+  const equityAmount = userFundSize * position / 100;
   const sectorFlow = data?.sectorFundFlow || [];
   const avgDailyFlow = sectorFlow.reduce((sum, s) => sum + Math.abs(s.mainNetInflow || 0), 0) / sectorFlow.length / 1e8;
 
   const dailyBuildRatio = 0.05;
   const buildDays = Math.ceil(equityAmount / (avgDailyFlow * dailyBuildRatio || 10));
 
-  return Math.max(3, Math.min(30, buildDays));
+  return Math.max(3, Math.min(60, buildDays));
 }
 
 function assessRiskLevel(data, regimeResult) {
@@ -3389,12 +3534,13 @@ function renderSectorConcentration(data) {
 function renderRiskAdvice(data, decisionResult) {
   const { positionAdvice, riskLevel, regimeResult } = decisionResult;
   const lines = [];
+  const fundSize = userFundSize;
 
   lines.push(`<p><strong>当前市场状态：</strong><span class="up">${regimeResult.regime}</span>（评分${regimeResult.score}/100，置信度${regimeResult.confidence}%）</p>`);
   lines.push(`<p><strong>建议权益仓位：</strong><span style="color:var(--accent);font-weight:600;">${positionAdvice.position}%</span>（仓位区间${positionAdvice.minPos}-${positionAdvice.maxPos}%）</p>`);
   lines.push(`<p><strong>风险等级：</strong>${riskLevel.level}（风险评分${riskLevel.riskScore}/100）</p>`);
-  lines.push(`<p><strong>200亿权益规模：</strong>${positionAdvice.equityAmount}亿（${positionAdvice.minEquityAmount}-${positionAdvice.maxEquityAmount}亿）</p>`);
-  lines.push(`<p><strong>流动性调整后仓位：</strong>${positionAdvice.adjustedPosition}%（考虑200亿体量冲击成本，下调${positionAdvice.liquidityAdjustment}%）</p>`);
+  lines.push(`<p><strong>${fundSize}亿权益规模：</strong>${positionAdvice.equityAmount}亿（${positionAdvice.minEquityAmount}-${positionAdvice.maxEquityAmount}亿）</p>`);
+  lines.push(`<p><strong>流动性调整后仓位：</strong>${positionAdvice.adjustedPosition}%（考虑${fundSize}亿体量冲击成本，下调${positionAdvice.liquidityAdjustment}%）</p>`);
   lines.push(`<p><strong>建议建仓周期：</strong>${positionAdvice.buildPeriod}个交易日（日均建仓不超过5%）</p>`);
 
   lines.push('<h3>仓位管理建议</h3>');
@@ -3419,13 +3565,13 @@ function renderRiskAdvice(data, decisionResult) {
   lines.push(`<p>3. <strong>深度回调（-20%）：</strong>预计回撤${stressTest.severe.drawdown.toFixed(2)}%，亏损${stressTest.severe.loss}亿，触及清盘预警线</p>`);
   lines.push(`<p>4. <strong>黑天鹅（-30%）：</strong>预计回撤${stressTest.blackswan.drawdown.toFixed(2)}%，亏损${stressTest.blackswan.loss}亿，启动应急预案</p>`);
 
-  lines.push('<h3>🛡️ 200亿基金操作纪律</h3>');
-  lines.push('<p>1. <strong>单一股票上限：</strong>单一个股持仓不超过基金净值5%（约10亿元），避免流动性风险。</p>');
-  lines.push('<p>2. <strong>单一板块上限：</strong>单一板块配置不超过30%（约60亿元），超配时主动减仓。</p>');
+  lines.push(`<h3>🛡️ ${fundSize}亿基金操作纪律</h3>`);
+  lines.push(`<p>1. <strong>单一股票上限：</strong>单一个股持仓不超过基金净值5%（约${(fundSize * 0.05).toFixed(0)}亿元），避免流动性风险。</p>`);
+  lines.push(`<p>2. <strong>单一板块上限：</strong>单一板块配置不超过30%（约${(fundSize * 0.3).toFixed(0)}亿元），超配时主动减仓。</p>`);
   lines.push('<p>3. <strong>日均交易额限制：</strong>单只股票单日交易不超过该股日均成交额的10%，降低冲击成本。</p>');
   lines.push('<p>4. <strong>止损止盈：</strong>个股硬止损-8%，止盈+20%分批兑现（1/3+1/3+1/3）。</p>');
   lines.push('<p>5. <strong>最大回撤：</strong>产品回撤超10%强制降仓30%，回撤超20%进入清盘预警。</p>');
-  lines.push('<p>6. <strong>建仓周期：</strong>200亿资金建仓期不少于10个交易日，避免一次性满仓。</p>');
+  lines.push(`<p>6. <strong>建仓周期：</strong>${fundSize}亿资金建仓期不少于${Math.max(5, Math.ceil(fundSize / 40))}个交易日，避免一次性满仓。</p>`);
 
   lines.push('<h3>🦢 黑天鹅应急预案</h3>');
   lines.push('<p>1. <strong>触发条件：</strong>单日大盘跌超5% 或 北向流出超100亿 或 VIX飙升超40。</p>');
@@ -3438,7 +3584,7 @@ function renderRiskAdvice(data, decisionResult) {
 
 function runStressTest(positionAdvice, riskLevel) {
   const equityRatio = positionAdvice.adjustedPosition / 100;
-  const totalFund = 200;
+  const totalFund = userFundSize;
   const beta = 0.85;
 
   const mild = {
@@ -3513,7 +3659,7 @@ function calculateSectorHeat(sector, fundFlow) {
 
   const turnover = sector.turnover || 0;
   const turnoverYi = turnover / 1e8;
-  const fundSize = 200;
+  const fundSize = userFundSize;
   const maxPositionRatio = 0.3;
   const dailyTradeRatio = 0.1;
 
@@ -3522,17 +3668,17 @@ function calculateSectorHeat(sector, fundFlow) {
 
   let liquidityLevel = '高';
   let liquidityClass = 'down';
-  let liquidityDesc = '200亿资金可自由进出';
-  if (turnoverYi > 500) {
+  let liquidityDesc = fundSize + '亿资金可自由进出';
+  if (turnoverYi > fundSize * 2.5) {
     liquidityLevel = '极高'; liquidityClass = 'down'; liquidityDesc = '流动性极佳，大资金无障碍';
-  } else if (turnoverYi > 200) {
-    liquidityLevel = '高'; liquidityClass = 'down'; liquidityDesc = '流动性良好，200亿可从容配置';
-  } else if (turnoverYi > 100) {
+  } else if (turnoverYi > fundSize) {
+    liquidityLevel = '高'; liquidityClass = 'down'; liquidityDesc = '流动性良好，' + fundSize + '亿可从容配置';
+  } else if (turnoverYi > fundSize * 0.5) {
     liquidityLevel = '中'; liquidityClass = 'warn'; liquidityDesc = '流动性一般，需分批建仓';
-  } else if (turnoverYi > 50) {
+  } else if (turnoverYi > fundSize * 0.25) {
     liquidityLevel = '低'; liquidityClass = 'warn'; liquidityDesc = '流动性偏弱，大资金进出有冲击';
   } else {
-    liquidityLevel = '极低'; liquidityClass = 'up'; liquidityDesc = '流动性差，200亿资金慎入';
+    liquidityLevel = '极低'; liquidityClass = 'up'; liquidityDesc = '流动性差，' + fundSize + '亿资金慎入';
   }
 
   return {
@@ -3765,6 +3911,45 @@ document.addEventListener('DOMContentLoaded', () => {
   $('auto-refresh').addEventListener('change', (e) => {
     toggleAutoRefresh(e.target.checked);
   });
+
+  // 自定义资金规模
+  const btnApplyFund = $('btn-apply-fund-size');
+  const btnResetFund = $('btn-reset-fund-size');
+  const inputFund = $('custom-fund-size');
+  if (btnApplyFund) {
+    btnApplyFund.addEventListener('click', () => {
+      const val = parseFloat(inputFund.value);
+      if (val && val > 0) {
+        userFundSize = val;
+        if (currentData) {
+          const decisionResult = renderDecisionCore(currentData);
+          renderAssetAllocation(decisionResult.positionAdvice, decisionResult.regimeResult);
+          renderRiskAdvice(currentData, decisionResult);
+          $('risk-fund-tag').textContent = val.toFixed(0) + '亿基金标配';
+          $('fund-allocation-title').textContent = val.toFixed(0) + '亿';
+          $('total-fund-label').textContent = val.toFixed(0) + '亿总规模';
+          $('single-stock-cap').textContent = (val * 0.05).toFixed(0) + '亿';
+          renderSectorHeatAnalysis(currentData);
+        }
+      }
+    });
+  }
+  if (btnResetFund) {
+    btnResetFund.addEventListener('click', () => {
+      userFundSize = 200;
+      inputFund.value = 200;
+      if (currentData) {
+        const decisionResult = renderDecisionCore(currentData);
+        renderAssetAllocation(decisionResult.positionAdvice, decisionResult.regimeResult);
+        renderRiskAdvice(currentData, decisionResult);
+        $('risk-fund-tag').textContent = '200亿基金标配';
+        $('fund-allocation-title').textContent = '200亿';
+        $('total-fund-label').textContent = '200亿总规模';
+        $('single-stock-cap').textContent = '10亿';
+        renderSectorHeatAnalysis(currentData);
+      }
+    });
+  }
 
   loadData();
 });

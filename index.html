@@ -211,7 +211,16 @@
     }
     .index-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
 
-    .idx-name { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+    .idx-name { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; cursor: help; position: relative; display: inline-block; }
+    .idx-name .idx-tooltip {
+      visibility: hidden; opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: var(--card-hover); border: 1px solid var(--border-strong); border-radius: 8px;
+      padding: 10px 12px; width: 220px; font-size: 11px; font-weight: 400; line-height: 1.6;
+      color: var(--text-primary); z-index: 100; margin-bottom: 6px; pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.2s;
+    }
+    .idx-name:hover .idx-tooltip { visibility: visible; opacity: 1; }
+    .idx-tooltip strong { color: var(--accent); display: block; margin-bottom: 4px; }
     .idx-price { font-size: 24px; font-weight: 700; line-height: 1.2; margin-bottom: 4px; }
     .idx-change { font-size: 13px; margin-bottom: 6px; }
     .idx-sub { font-size: 11px; color: var(--text-muted); }
@@ -529,12 +538,16 @@
     .bottleneck-title { font-weight: 600; flex: 1; }
     .bottleneck-tag {
       font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text-dim);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
     }
+    .bottleneck-tag.type-equipment { background: rgba(139,92,246,0.15); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3); }
+    .bottleneck-tag.type-material { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .bottleneck-tag.type-chip { background: rgba(236,72,153,0.15); color: #ec4899; border: 1px solid rgba(236,72,153,0.3); }
+    .bottleneck-tag.type-design { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+    .bottleneck-tag.type-other { background: rgba(107,114,128,0.15); color: #6b7280; border: 1px solid rgba(107,114,128,0.3); }
     .bottleneck-severity {
       font-size: 10px;
       padding: 2px 6px;
@@ -1520,41 +1533,41 @@
     <!-- 大盘指数概览（A股+全球联动分析）-->
     <div class="index-section">
       <div class="market-index-grid" id="market-index-grid">
-        <div class="index-card"><div class="idx-name">上证指数</div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
-        <div class="index-card"><div class="idx-name">深证成指</div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
-        <div class="index-card"><div class="idx-name">创业板指</div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
-        <div class="index-card"><div class="idx-name">科创50</div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
+        <div class="index-card"><div class="idx-name">上证指数<span class="idx-tooltip"><strong>上证指数 (000001)</strong>A股最具代表性的大盘指数，涵盖沪市全部上市公司，反映大盘蓝筹整体表现，是判断市场牛熊的核心基准。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
+        <div class="index-card"><div class="idx-name">深证成指<span class="idx-tooltip"><strong>深证成指 (399001)</strong>深市核心指数，选取500只市值最大、流动性最好的股票，反映深市主板整体走势，涵盖中盘成长股。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
+        <div class="index-card"><div class="idx-name">创业板指<span class="idx-tooltip"><strong>创业板指 (399006)</strong>选取创业板100只最具代表性股票，以科技成长、新能源、医药为主，是判断成长风格和市场风险偏好的关键指标。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
+        <div class="index-card"><div class="idx-name">科创50<span class="idx-tooltip"><strong>科创50 (000688)</strong>科创板市值最大、流动性最好的50只股票，聚焦硬科技、半导体、生物医药等高成长领域，波动率高，弹性大。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
       </div>
       <div class="index-divider"><span>🌍 全球市场 · 流动性指标</span></div>
       <div class="market-index-grid global" id="global-market-grid-top">
-        <div class="index-card"><div class="idx-name">道琼斯</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">标普500</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">纳斯达克</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">恒生指数</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">日经225</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">黄金/美元</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">道琼斯<span class="idx-tooltip"><strong>道琼斯工业平均指数</strong>美国最老牌的股指，由30只蓝筹工业股组成，代表美国传统经济和大盘蓝筹走势，是全球股市风向标之一。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">标普500<span class="idx-tooltip"><strong>标普500指数</strong>美国最具代表性的宽基指数，涵盖500只大盘股，覆盖各行业龙头，是判断美股整体走势和全球风险偏好的核心指标。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">纳斯达克<span class="idx-tooltip"><strong>纳斯达克综合指数</strong>以科技股为核心的指数，涵盖苹果、微软、英伟达等科技巨头，是全球科技成长风格的风向标，对A股科技板块有联动效应。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">恒生指数<span class="idx-tooltip"><strong>恒生指数</strong>香港股市核心指数，涵盖50只最大市值港股，是连接A股与全球市场的桥梁，受外资流向影响显著，与A股联动性强。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">日经225<span class="idx-tooltip"><strong>日经225指数</strong>日本股市核心指数，反映日本经济和亚太市场情绪，日本央行政策对全球流动性有重要影响，是亚洲股市重要参考。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">黄金/美元<span class="idx-tooltip"><strong>黄金现货价格</strong>全球避险资产核心标的，通胀预期、地缘政治、美元走势都会影响金价。黄金上涨通常预示市场风险偏好下降。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
       </div>
       <div class="market-index-grid global" id="global-liquidity-grid" style="margin-bottom: 12px; grid-template-columns: repeat(4, 1fr);">
         <div class="index-card" style="border-left: 3px solid var(--warn);">
-          <div class="idx-name">VIX恐慌指数</div>
+          <div class="idx-name">VIX恐慌指数<span class="idx-tooltip"><strong>VIX波动率指数</strong>又称"恐慌指数"，反映标普500期权隐含波动率。VIX>30表示市场恐慌，<15表示市场乐观。是判断全球风险偏好的核心指标。</span></div>
           <div class="idx-price" id="vix-price">--</div>
           <div class="idx-change" id="vix-change">--</div>
           <div class="idx-sub" id="vix-status">--</div>
         </div>
         <div class="index-card" style="border-left: 3px solid var(--accent);">
-          <div class="idx-name">美元指数(DXY)</div>
+          <div class="idx-name">美元指数(DXY)<span class="idx-tooltip"><strong>美元指数 (DXY)</strong>衡量美元对一篮子货币的汇率强弱。美元走强通常导致新兴市场资金外流、人民币贬值压力、外资流出A股。</span></div>
           <div class="idx-price" id="dxy-price">--</div>
           <div class="idx-change" id="dxy-change">--</div>
           <div class="idx-sub" id="dxy-impact">--</div>
         </div>
         <div class="index-card" style="border-left: 3px solid var(--up);">
-          <div class="idx-name">10年期美债收益率</div>
+          <div class="idx-name">10年期美债收益率<span class="idx-tooltip"><strong>10年期美国国债收益率</strong>全球资产定价的"锚"。美债收益率上行，压制成长股估值（尤其是高估值科技股），增加外资流向美股的吸引力。</span></div>
           <div class="idx-price" id="ust10y-price">--</div>
           <div class="idx-change" id="ust10y-change">--</div>
           <div class="idx-sub" id="ust10y-impact">--</div>
         </div>
         <div class="index-card" style="border-left: 3px solid var(--down);">
-          <div class="idx-name">2年/10年利差</div>
+          <div class="idx-name">2年/10年利差<span class="idx-tooltip"><strong>2年与10年期美债收益率利差</strong>利差倒挂（2年>10年）是经典的经济衰退预警信号。倒挂越深，未来经济衰退概率越高，对风险资产不利。</span></div>
           <div class="idx-price" id="yield-spread">--</div>
           <div class="idx-change" id="spread-status">--</div>
           <div class="idx-sub" id="recession-risk">--</div>
@@ -1959,7 +1972,28 @@
     <!-- 策略风控（200亿基金必备：仓位管理+风险预警+止损止盈+集中度检测）-->
     <div class="tab-panel" id="panel-risk">
       <div class="card">
-        <div class="card-title">📊 仓位管理系统 <span class="horizon-tag">200亿基金标配</span></div>
+        <div class="card-title">
+          💰 资产规模设置 <span class="horizon-tag">自定义适配</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:400;">输入你的资产规模，系统自动匹配仓位、止盈止损、集中度限制</span>
+        </div>
+        <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="font-size: 13px; color: var(--text-dim); white-space: nowrap;">我的资产规模：</label>
+            <input type="number" id="custom-fund-size" value="200" min="1" step="10"
+              style="width: 120px; padding: 8px 12px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 14px; font-weight: 600;" />
+            <span style="font-size: 13px; color: var(--text-dim);">亿元</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn primary" id="btn-apply-fund-size" style="padding: 8px 16px; font-size: 13px;">应用并重新计算</button>
+            <button class="btn" id="btn-reset-fund-size" style="padding: 8px 16px; font-size: 13px;">重置(200亿)</button>
+          </div>
+          <div style="flex: 1; min-width: 200px; font-size: 12px; color: var(--text-muted); text-align: right;">
+            💡 资产规模越大，仓位限制越严格（冲击成本、流动性风险越高）
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 仓位管理系统 <span class="horizon-tag" id="risk-fund-tag">200亿基金标配</span></div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px;">
           <div style="background: var(--bg-soft); border-radius: 10px; padding: 16px; text-align: center;">
             <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">建议权益仓位</div>
@@ -1969,7 +2003,7 @@
           <div style="background: var(--bg-soft); border-radius: 10px; padding: 16px; text-align: center;">
             <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">权益规模</div>
             <div style="font-size: 28px; font-weight: 700; color: var(--down);" id="equity-amount">120亿</div>
-            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">200亿总规模</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;" id="total-fund-label">200亿总规模</div>
           </div>
           <div style="background: var(--bg-soft); border-radius: 10px; padding: 16px; text-align: center;">
             <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">建议建仓周期</div>
@@ -1978,8 +2012,8 @@
           </div>
           <div style="background: var(--bg-soft); border-radius: 10px; padding: 16px; text-align: center;">
             <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">单一个股上限</div>
-            <div style="font-size: 28px; font-weight: 700; color: var(--up);">10亿</div>
-            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">总规模5%</div>
+            <div style="font-size: 28px; font-weight: 700; color: var(--up);" id="single-stock-cap">10亿</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;" id="single-stock-cap-label">总规模5%</div>
           </div>
         </div>
         <div class="detail-section-title" style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed var(--border);">
@@ -2010,7 +2044,7 @@
       </div>
 
       <div class="card">
-        <div class="card-title">💰 200亿资金配置方案</div>
+        <div class="card-title">💰 <span id="fund-allocation-title">200亿</span>资金配置方案</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
           <div>
             <div class="detail-section-title" style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px;">

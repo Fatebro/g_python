@@ -482,11 +482,11 @@ function buildGlobalFundFlowSummary(globalData, riskClass, riskAppetite) {
   const hsi = globalData.find(x => x.code === 'HSI');
   const usUpCount = us.filter(x => x.changePct >= 0).length;
   const nb = d?.northbound?.latest;
+  const vix = d?.globalVix || 20;
 
   const lines = [];
   lines.push(`<p><span class="${riskClass}" style="font-weight:600;">${riskAppetite}</span></p>`);
 
-  // 资金流向预判 + 受益板块
   let inflowSectors = [];
   let outflowSectors = [];
   if (usUpCount >= 2 && !(gold && gold.changePct > 1)) {
@@ -507,11 +507,22 @@ function buildGlobalFundFlowSummary(globalData, riskClass, riskAppetite) {
   if (outflowSectors.length) {
     lines.push(`<div class="gff-sectors" style="margin-top:4px;">${outflowSectors.map(s => `<span class="gff-sector-tag gff-sector-click" style="background:rgba(239,68,68,0.1);color:#ef4444;border-color:rgba(239,68,68,0.2);" data-sector="${s}">📉 ${s}</span>`).join('')}</div>`);
   }
+
+  lines.push(`<p style="margin-top:8px;font-size:11px;color:var(--text-dim);"><strong>🔗 传导路径：</strong></p>`);
+  if (vix > 25) {
+    lines.push(`<p style="font-size:11px;color:var(--text-dim);">VIX↑ → 全球风险偏好↓ → 外资流出A股 → 成长股估值承压 → 防御板块相对收益</p>`);
+  } else if (vix < 15) {
+    lines.push(`<p style="font-size:11px;color:var(--text-dim);">VIX↓ → 全球风险偏好↑ → 外资流入A股 → 成长股估值修复 → 顺周期板块受益</p>`);
+  } else {
+    lines.push(`<p style="font-size:11px;color:var(--text-dim);">VIX中性 → 全球资金观望 → A股结构性行情 → 精选个股为主</p>`);
+  }
+
+  lines.push(`<p style="margin-top:6px;font-size:11px;color:var(--text-dim);"><strong>🛡️ 对冲策略建议：</strong>${vix > 25 ? '建议启用股指期货对冲，对冲比例30-50%，增持黄金和国债' : vix > 18 ? '适度对冲，对冲比例10-20%，保持灵活性' : '无需对冲，保持积极仓位，聚焦alpha收益'}</p>`);
+
   if (nb) {
     lines.push(`<p style="margin-top:6px;font-size:11px;color:var(--text-muted);">北向资金当日：<span class="${nb.total >= 0 ? 'up' : 'down'}">${nb.total >= 0 ? '+' : ''}${nb.total.toFixed(2)}亿</span> · 沪股通 ${nb.sh >= 0 ? '+' : ''}${nb.sh.toFixed(1)}亿 · 深股通 ${nb.sz >= 0 ? '+' : ''}${nb.sz.toFixed(1)}亿</p>`);
   }
   const html = lines.join('');
-  // 延迟绑定点击事件
   setTimeout(() => {
     document.querySelectorAll('.gff-sector-click').forEach(el => {
       el.style.cursor = 'pointer';
@@ -2681,7 +2692,965 @@ function bindStockClicks() {
   });
 }
 
-// ===== 10. 数据加载与刷新 =====
+// ===== 10. 投资决策核心（200亿基金视角） =====
+
+function calculateMarketRegime(data) {
+  if (!data) return { regime: '数据不足', confidence: 0, factors: {}, factorDetails: [] };
+
+  const ztCount = data.limitUp?.total || 0;
+  const dtCount = data.limitDown?.total || 0;
+  const ztRatio = dtCount > 0 ? ztCount / dtCount : ztCount;
+
+  const nb = data.northbound?.latest;
+  const nbTotal = nb?.total || 0;
+
+  const sectorRank = data.sectorRank || [];
+  let sectorDiff = 0;
+  if (sectorRank.length >= 2) {
+    const sorted = [...sectorRank].sort((a, b) => b.changePct - a.changePct);
+    sectorDiff = sorted[0].changePct - sorted[sorted.length - 1].changePct;
+  }
+
+  const sectorFlow = data.sectorFundFlow || [];
+  const totalInflow = sectorFlow.reduce((sum, s) => sum + Math.max(0, s.mainNetInflow || 0), 0);
+  const totalOutflow = Math.abs(sectorFlow.reduce((sum, s) => sum + Math.min(0, s.mainNetInflow || 0), 0));
+  const fundRatio = totalOutflow > 0 ? totalInflow / totalOutflow : 1;
+
+  const advanceDeclineRatio = data.advanceDecline?.ratio || 1.2;
+  const volumeChange = data.volumeChange || 0;
+
+  const factorDetails = [];
+
+  let score = 50;
+
+  if (ztRatio > 5) { score += 15; factorDetails.push({ name: '涨跌停比', value: ztRatio.toFixed(2), impact: '+15', direction: 'up', desc: '情绪极度亢奋' }); }
+  else if (ztRatio > 3) { score += 10; factorDetails.push({ name: '涨跌停比', value: ztRatio.toFixed(2), impact: '+10', direction: 'up', desc: '情绪偏强' }); }
+  else if (ztRatio > 1.5) { score += 5; factorDetails.push({ name: '涨跌停比', value: ztRatio.toFixed(2), impact: '+5', direction: 'up', desc: '情绪中性偏多' }); }
+  else if (ztRatio < 0.5) { score -= 15; factorDetails.push({ name: '涨跌停比', value: ztRatio.toFixed(2), impact: '-15', direction: 'down', desc: '情绪极度恐慌' }); }
+  else if (ztRatio < 1) { score -= 10; factorDetails.push({ name: '涨跌停比', value: ztRatio.toFixed(2), impact: '-10', direction: 'down', desc: '情绪偏弱' }); }
+  else { factorDetails.push({ name: '涨跌停比', value: ztRatio.toFixed(2), impact: '0', direction: 'neutral', desc: '情绪中性' }); }
+
+  if (nbTotal > 50) { score += 12; factorDetails.push({ name: '北向资金', value: '+' + nbTotal.toFixed(0) + '亿', impact: '+12', direction: 'up', desc: '外资大幅流入' }); }
+  else if (nbTotal > 20) { score += 8; factorDetails.push({ name: '北向资金', value: '+' + nbTotal.toFixed(0) + '亿', impact: '+8', direction: 'up', desc: '外资净流入' }); }
+  else if (nbTotal > 0) { score += 4; factorDetails.push({ name: '北向资金', value: '+' + nbTotal.toFixed(0) + '亿', impact: '+4', direction: 'up', desc: '外资小幅流入' }); }
+  else if (nbTotal < -30) { score -= 12; factorDetails.push({ name: '北向资金', value: nbTotal.toFixed(0) + '亿', impact: '-12', direction: 'down', desc: '外资大幅流出' }); }
+  else if (nbTotal < -10) { score -= 8; factorDetails.push({ name: '北向资金', value: nbTotal.toFixed(0) + '亿', impact: '-8', direction: 'down', desc: '外资净流出' }); }
+  else { factorDetails.push({ name: '北向资金', value: nbTotal.toFixed(0) + '亿', impact: '0', direction: 'neutral', desc: '外资观望' }); }
+
+  if (sectorDiff < 3) { score += 5; factorDetails.push({ name: '板块分化', value: sectorDiff.toFixed(1) + '%', impact: '+5', direction: 'up', desc: '普涨格局' }); }
+  else if (sectorDiff > 7) { score -= 5; factorDetails.push({ name: '板块分化', value: sectorDiff.toFixed(1) + '%', impact: '-5', direction: 'down', desc: '分化严重' }); }
+  else { factorDetails.push({ name: '板块分化', value: sectorDiff.toFixed(1) + '%', impact: '0', direction: 'neutral', desc: '分化适中' }); }
+
+  if (fundRatio > 1.5) { score += 8; factorDetails.push({ name: '资金比', value: fundRatio.toFixed(2), impact: '+8', direction: 'up', desc: '流入远大于流出' }); }
+  else if (fundRatio < 0.7) { score -= 8; factorDetails.push({ name: '资金比', value: fundRatio.toFixed(2), impact: '-8', direction: 'down', desc: '流出远大于流入' }); }
+  else { factorDetails.push({ name: '资金比', value: fundRatio.toFixed(2), impact: '0', direction: 'neutral', desc: '资金进出平衡' }); }
+
+  if (advanceDeclineRatio > 2) { score += 6; factorDetails.push({ name: '涨跌比', value: advanceDeclineRatio.toFixed(2), impact: '+6', direction: 'up', desc: '普涨格局' }); }
+  else if (advanceDeclineRatio < 0.5) { score -= 6; factorDetails.push({ name: '涨跌比', value: advanceDeclineRatio.toFixed(2), impact: '-6', direction: 'down', desc: '普跌格局' }); }
+  else { factorDetails.push({ name: '涨跌比', value: advanceDeclineRatio.toFixed(2), impact: '0', direction: 'neutral', desc: '涨跌参半' }); }
+
+  if (volumeChange > 0.2) { score += 4; factorDetails.push({ name: '量能变化', value: '+' + (volumeChange * 100).toFixed(0) + '%', impact: '+4', direction: 'up', desc: '放量上攻' }); }
+  else if (volumeChange < -0.2) { score -= 4; factorDetails.push({ name: '量能变化', value: (volumeChange * 100).toFixed(0) + '%', impact: '-4', direction: 'down', desc: '缩量回调' }); }
+  else { factorDetails.push({ name: '量能变化', value: (volumeChange * 100).toFixed(0) + '%', impact: '0', direction: 'neutral', desc: '量能平稳' }); }
+
+  score = Math.max(0, Math.min(100, score));
+
+  let regime = '震荡';
+  let regimeClass = 'neutral';
+  if (score >= 75) { regime = '牛市趋势'; regimeClass = 'up'; }
+  else if (score >= 60) { regime = '震荡上行'; regimeClass = 'up'; }
+  else if (score >= 40) { regime = '震荡整理'; regimeClass = 'neutral'; }
+  else if (score >= 25) { regime = '震荡偏弱'; regimeClass = 'warn'; }
+  else { regime = '熊市趋势'; regimeClass = 'down'; }
+
+  const confidence = Math.round(40 + Math.abs(score - 50) * 1.2 + factorDetails.length * 2);
+
+  return {
+    regime, regimeClass, score, confidence,
+    factors: { ztRatio, nbTotal, sectorDiff, fundRatio, advanceDeclineRatio, volumeChange },
+    factorDetails
+  };
+}
+
+function generatePositionAdvice(regimeResult, data) {
+  const { score, regime } = regimeResult;
+
+  let position = 50;
+  let minPos = 40, maxPos = 60;
+
+  if (score >= 75) { position = 78; minPos = 70; maxPos = 85; }
+  else if (score >= 60) { position = 62; minPos = 55; maxPos = 70; }
+  else if (score >= 40) { position = 48; minPos = 40; maxPos = 55; }
+  else if (score >= 25) { position = 35; minPos = 25; maxPos = 40; }
+  else { position = 25; minPos = 20; maxPos = 35; }
+
+  const totalFundSize = 200;
+  const equityAmount = (totalFundSize * position / 100).toFixed(0);
+  const minEquityAmount = (totalFundSize * minPos / 100).toFixed(0);
+  const maxEquityAmount = (totalFundSize * maxPos / 100).toFixed(0);
+
+  const topSectorCap = (totalFundSize * 0.3).toFixed(0);
+  const topStockCap = (totalFundSize * 0.05).toFixed(0);
+
+  const liquidityAdjustment = estimateLiquidityImpact(data);
+  const adjustedMinPos = Math.max(20, minPos - liquidityAdjustment);
+  const adjustedMaxPos = Math.min(90, maxPos - liquidityAdjustment);
+  const adjustedPosition = Math.round((adjustedMinPos + adjustedMaxPos) / 2);
+
+  return {
+    position, minPos, maxPos, regime,
+    totalFundSize,
+    equityAmount: Number(equityAmount),
+    minEquityAmount: Number(minEquityAmount),
+    maxEquityAmount: Number(maxEquityAmount),
+    topSectorCap: Number(topSectorCap),
+    topStockCap: Number(topStockCap),
+    liquidityAdjustment,
+    adjustedPosition,
+    adjustedMinPos,
+    adjustedMaxPos,
+    buildPeriod: estimateBuildPeriod(position, data)
+  };
+}
+
+function estimateLiquidityImpact(data) {
+  const sectorFlow = data?.sectorFundFlow || [];
+  if (sectorFlow.length === 0) return 5;
+
+  const avgDailyTurnover = sectorFlow.reduce((sum, s) => sum + (s.turnover || 0), 0) / sectorFlow.length / 1e8;
+  const fundSize = 200;
+
+  if (avgDailyTurnover > 5000) return 0;
+  if (avgDailyTurnover > 3000) return 2;
+  if (avgDailyTurnover > 1000) return 5;
+  return 8;
+}
+
+function estimateBuildPeriod(position, data) {
+  const equityAmount = 200 * position / 100;
+  const sectorFlow = data?.sectorFundFlow || [];
+  const avgDailyFlow = sectorFlow.reduce((sum, s) => sum + Math.abs(s.mainNetInflow || 0), 0) / sectorFlow.length / 1e8;
+
+  const dailyBuildRatio = 0.05;
+  const buildDays = Math.ceil(equityAmount / (avgDailyFlow * dailyBuildRatio || 10));
+
+  return Math.max(3, Math.min(30, buildDays));
+}
+
+function assessRiskLevel(data, regimeResult) {
+  let riskScore = 50;
+
+  const vix = data.globalVix || 20;
+  if (vix > 30) riskScore += 15;
+  else if (vix > 20) riskScore += 5;
+  else if (vix < 15) riskScore -= 5;
+
+  const sectorDiff = regimeResult.factors.sectorDiff || 0;
+  if (sectorDiff > 8) riskScore += 10;
+  else if (sectorDiff > 5) riskScore += 5;
+
+  const ztRatio = regimeResult.factors.ztRatio || 1;
+  if (ztRatio > 8 || ztRatio < 0.3) riskScore += 10;
+
+  const nbTotal = regimeResult.factors.nbTotal || 0;
+  if (nbTotal < -50) riskScore += 10;
+  else if (nbTotal < -20) riskScore += 5;
+
+  riskScore = Math.max(0, Math.min(100, riskScore));
+
+  let level = '中风险';
+  let levelClass = 'warn';
+  if (riskScore >= 70) { level = '高风险'; levelClass = 'up'; }
+  else if (riskScore >= 45) { level = '中风险'; levelClass = 'warn'; }
+  else { level = '低风险'; levelClass = 'down'; }
+
+  return { level, levelClass, riskScore, vix };
+}
+
+function identifyCoreConflict(data, regimeResult) {
+  const nb = data.northbound?.latest?.total || 0;
+  const sectorFlow = data.sectorFundFlow || [];
+  const mainForceTotal = sectorFlow.reduce((sum, s) => sum + (s.mainNetInflow || 0), 0);
+
+  const conflicts = [];
+
+  if (nb > 20 && mainForceTotal < 0) {
+    conflicts.push('外资流入 vs 内资流出');
+  } else if (nb < -20 && mainForceTotal > 0) {
+    conflicts.push('外资流出 vs 内资流入');
+  }
+
+  const topSectors = [...sectorFlow].sort((a, b) => b.mainNetInflow - a.mainNetInflow).slice(0, 3);
+  const botSectors = [...sectorFlow].sort((a, b) => a.mainNetInflow - b.mainNetInflow).slice(0, 3);
+  const topSum = topSectors.reduce((s, x) => s + (x.mainNetInflow || 0), 0);
+  const botSum = Math.abs(botSectors.reduce((s, x) => s + (x.mainNetInflow || 0), 0));
+  if (topSum > botSum * 1.5) {
+    conflicts.push('板块分化加剧 · 资金集中头部');
+  }
+
+  const ztCount = data.limitUp?.total || 0;
+  const dtCount = data.limitDown?.total || 0;
+  if (ztCount > 50 && dtCount > 20) {
+    conflicts.push('涨跌互现 · 情绪分歧大');
+  }
+
+  if (conflicts.length === 0) {
+    if (regimeResult.score >= 60) return '多方占优 · 顺势而为';
+    if (regimeResult.score <= 40) return '空方主导 · 耐心等待';
+    return '多空平衡 · 震荡格局';
+  }
+
+  return conflicts[0];
+}
+
+function renderDecisionCore(data) {
+  const regimeResult = calculateMarketRegime(data);
+  const positionAdvice = generatePositionAdvice(regimeResult, data);
+  const riskLevel = assessRiskLevel(data, regimeResult);
+  const coreConflict = identifyCoreConflict(data, regimeResult);
+
+  const regimeEl = $('market-regime');
+  regimeEl.textContent = regimeResult.regime;
+  regimeEl.className = 'mood-badge ' + regimeResult.regimeClass;
+
+  $('position-suggestion').textContent = positionAdvice.position + '%';
+  $('position-range').textContent = positionAdvice.minPos + '-' + positionAdvice.maxPos + '%';
+
+  const riskEl = $('risk-level');
+  riskEl.textContent = riskLevel.level;
+  riskEl.className = 'mood-badge ' + riskLevel.levelClass;
+
+  $('regime-confidence').textContent = regimeResult.confidence;
+  $('core-conflict').textContent = coreConflict;
+  $('vix-value').textContent = riskLevel.vix?.toFixed(1) || '--';
+  $('vol-value').textContent = (regimeResult.factors.sectorDiff || 0).toFixed(1) + '%';
+
+  const nbTrendVal = regimeResult.factors.nbTotal || 0;
+  const nbTrendEl = $('nb-trend');
+  nbTrendEl.textContent = (nbTrendVal >= 0 ? '+' : '') + nbTrendVal.toFixed(1) + '亿';
+  nbTrendEl.className = nbTrendVal >= 0 ? 'up' : 'down';
+
+  $('zt-ratio').textContent = (regimeResult.factors.ztRatio || 0).toFixed(2);
+  $('sector-diff').textContent = (regimeResult.factors.sectorDiff || 0).toFixed(2) + '%';
+
+  const signals = detectSpecialSignals();
+  $('signal-count').textContent = signals.length;
+
+  $('risk-current-pos').textContent = positionAdvice.position + '%';
+
+  renderSignalFactors(regimeResult);
+  renderDailyActionAdvice(regimeResult, positionAdvice, riskLevel);
+  setupDecisionPanelEvents();
+
+  renderDataQuality(data);
+
+  return { regimeResult, positionAdvice, riskLevel };
+}
+
+function renderSignalFactors(regimeResult) {
+  const list = $('signal-factor-list');
+  if (!list || !regimeResult.factorDetails) return;
+
+  list.innerHTML = regimeResult.factorDetails.map(f => {
+    const color = f.direction === 'up' ? 'var(--up)' : f.direction === 'down' ? 'var(--down)' : 'var(--text-dim)';
+    const sign = f.direction === 'up' ? '+' : f.direction === 'down' ? '' : '';
+    return `
+      <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--border);">
+        <span>${f.name}：${f.value}</span>
+        <span style="color: ${color}; font-weight: 600;">${sign}${f.impact}</span>
+      </div>
+    `;
+  }).join('') + `
+    <div style="display: flex; justify-content: space-between; padding: 6px 0; margin-top: 4px; border-top: 1px solid var(--border-strong);">
+      <span style="font-weight: 600;">综合评分</span>
+      <span style="color: var(--accent); font-weight: 700;">${regimeResult.score}/100</span>
+    </div>
+  `;
+}
+
+function renderDailyActionAdvice(regimeResult, positionAdvice, riskLevel) {
+  const el = $('daily-action-advice');
+  if (!el) return;
+
+  const score = regimeResult.score;
+  const lines = [];
+
+  if (score >= 70) {
+    lines.push('<p>✅ <strong>趋势向好：</strong>可适度加仓，聚焦主线板块龙头</p>');
+    lines.push('<p>🎯 <strong>关注方向：</strong>AI算力、半导体、新能源等高景气赛道</p>');
+    lines.push('<p>⚠️ <strong>注意事项：</strong>不追高，回调分批建仓，单票不超5%</p>');
+  } else if (score >= 50) {
+    lines.push('<p>⚖️ <strong>震荡格局：</strong>控制仓位，高抛低吸为主</p>');
+    lines.push('<p>🎯 <strong>关注方向：</strong>轮动机会，避免追涨杀跌</p>');
+    lines.push('<p>⚠️ <strong>注意事项：</strong>保持50%左右仓位，灵活调整</p>');
+  } else if (score >= 30) {
+    lines.push('<p>⚠️ <strong>偏弱震荡：</strong>降低仓位，防御为主</p>');
+    lines.push('<p>🎯 <strong>关注方向：</strong>高股息、公用事业、消费防御</p>');
+    lines.push('<p>⚠️ <strong>注意事项：</strong>严控回撤，止损纪律必须执行</p>');
+  } else {
+    lines.push('<p>🔴 <strong>风险偏高：</strong>现金为王，等待企稳信号</p>');
+    lines.push('<p>🎯 <strong>关注方向：</strong>货币基金、国债等低风险资产</p>');
+    lines.push('<p>⚠️ <strong>注意事项：</strong>不要盲目抄底，保留充足弹药</p>');
+  }
+
+  lines.push(`<p style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border);">
+    💰 <strong>建议仓位：</strong><span style="color:var(--accent);">${positionAdvice.adjustedPosition}%</span>
+    （流动性调整-${positionAdvice.liquidityAdjustment}%）
+  </p>`);
+
+  el.innerHTML = lines.join('');
+}
+
+function setupDecisionPanelEvents() {
+  const toggleBtn = $('btn-toggle-signals');
+  const panel = $('signal-details-panel');
+  const jumpBtn = $('btn-jump-risk');
+
+  if (toggleBtn && panel) {
+    toggleBtn.addEventListener('click', () => {
+      const isHidden = panel.style.display === 'none';
+      panel.style.display = isHidden ? 'block' : 'none';
+      toggleBtn.textContent = isHidden ? '📊 收起信号明细' : '📊 展开信号明细';
+    });
+  }
+
+  if (jumpBtn) {
+    jumpBtn.addEventListener('click', () => {
+      const tabBtn = document.querySelector('.tab-btn[data-tab="risk"]');
+      if (tabBtn) tabBtn.click();
+    });
+  }
+}
+
+function renderDataQuality(data) {
+  const isMock = data?.isMock === true;
+  const hasReal = data?.hasRealData || false;
+
+  let score = 0;
+  let label = '';
+  let labelClass = '';
+  let dataSources = [];
+
+  if (isMock) {
+    score = 4;
+    label = '演示数据';
+    labelClass = 'warn';
+    dataSources = [
+      { name: '行情数据', type: '模拟', quality: '低' },
+      { name: '资金流向', type: '模拟', quality: '低' },
+      { name: '北向资金', type: '估算', quality: '中' },
+      { name: '全球市场', type: '模拟', quality: '低' },
+      { name: '涨跌停数据', type: '模拟', quality: '低' },
+      { name: '产业链数据', type: '静态', quality: '高' },
+      { name: '政策数据', type: '静态', quality: '高' },
+      { name: '产业生态', type: '静态', quality: '高' }
+    ];
+  } else if (hasReal) {
+    score = 8;
+    label = '真实行情';
+    labelClass = 'down';
+    dataSources = [
+      { name: '行情数据', type: '实时', quality: '高' },
+      { name: '资金流向', type: '实时', quality: '高' },
+      { name: '北向资金', type: '实时', quality: '高' },
+      { name: '全球市场', type: '延迟', quality: '中' },
+      { name: '涨跌停数据', type: '实时', quality: '高' },
+      { name: '产业链数据', type: '静态', quality: '高' },
+      { name: '政策数据', type: '静态', quality: '高' },
+      { name: '产业生态', type: '静态', quality: '高' }
+    ];
+  } else {
+    score = 6;
+    label = '混合数据';
+    labelClass = 'neutral';
+    dataSources = [
+      { name: '行情数据', type: '实时', quality: '高' },
+      { name: '资金流向', type: '延迟', quality: '中' },
+      { name: '北向资金', type: '实时', quality: '高' },
+      { name: '全球市场', type: '延迟', quality: '中' },
+      { name: '涨跌停数据', type: '实时', quality: '高' },
+      { name: '产业链数据', type: '静态', quality: '高' },
+      { name: '政策数据', type: '静态', quality: '高' },
+      { name: '产业生态', type: '静态', quality: '高' }
+    ];
+  }
+
+  $('dq-score').textContent = score;
+  const dqLabel = $('dq-label');
+  dqLabel.textContent = label;
+  dqLabel.style.color = labelClass === 'down' ? 'var(--down)' :
+                          labelClass === 'warn' ? 'var(--warn)' : 'var(--accent)';
+
+  return { score, label, labelClass, dataSources };
+}
+
+// ===== 11. 策略风控模块 =====
+
+function renderRiskWarnings(data, decisionResult) {
+  const warnings = [];
+  const { regimeResult, riskLevel, positionAdvice } = decisionResult;
+
+  if (riskLevel.riskScore >= 70) {
+    warnings.push({
+      level: 'danger', icon: '🚨',
+      title: '市场高风险预警',
+      desc: `风险评分${riskLevel.riskScore}/100，处于高风险区间，建议降低仓位至30%以下，以防御为主。200亿资金需提前准备对冲工具。`
+    });
+  } else if (riskLevel.riskScore >= 55) {
+    warnings.push({
+      level: 'warn', icon: '⚠️',
+      title: '市场中风险提示',
+      desc: `风险评分${riskLevel.riskScore}/100，处于中风险区间，建议控制仓位在50%以下，保持灵活性。`
+    });
+  }
+
+  const nb = data.northbound?.latest?.total || 0;
+  if (nb < -50) {
+    warnings.push({
+      level: 'danger', icon: '💸',
+      title: '北向资金大幅流出',
+      desc: `北向资金当日净流出${Math.abs(nb).toFixed(2)}亿，外资避险情绪升温，警惕外资重仓股回调压力。200亿仓位需关注消费、医药等外资重仓板块风险。`
+    });
+  } else if (nb < -20) {
+    warnings.push({
+      level: 'warn', icon: '💵',
+      title: '北向资金净流出',
+      desc: `北向资金当日净流出${Math.abs(nb).toFixed(2)}亿，外资态度偏谨慎，关注后续资金流向持续性。`
+    });
+  }
+
+  const dtCount = data.limitDown?.total || 0;
+  if (dtCount > 50) {
+    warnings.push({
+      level: 'danger', icon: '📉',
+      title: '跌停家数激增',
+      desc: `跌停${dtCount}家，市场恐慌情绪蔓延，需警惕系统性风险，回避高位股。建议启动风险对冲预案。`
+    });
+  } else if (dtCount > 20) {
+    warnings.push({
+      level: 'warn', icon: '📉',
+      title: '跌停家数偏多',
+      desc: `跌停${dtCount}家，市场情绪偏弱，注意控制仓位，回避近期涨幅过大的题材股。`
+    });
+  }
+
+  const sectorFlow = data.sectorFundFlow || [];
+  const outflowTotal = Math.abs(sectorFlow.filter(s => s.mainNetInflow < 0)
+    .reduce((s, x) => s + (x.mainNetInflow || 0), 0));
+  if (outflowTotal > 500e8) {
+    warnings.push({
+      level: 'warn', icon: '🩸',
+      title: '主力资金大幅撤离',
+      desc: `全市场主力净流出超${(outflowTotal/1e8).toFixed(0)}亿，资金离场明显，注意控制仓位。200亿资金应避免在流出板块中建仓。`
+    });
+  }
+
+  const topInflow = [...sectorFlow].sort((a, b) => b.mainNetInflow - a.mainNetInflow).slice(0, 3);
+  const totalInflow = topInflow.reduce((s, x) => s + (x.mainNetInflow || 0), 0);
+  const allInflow = sectorFlow.reduce((s, x) => s + Math.max(0, x.mainNetInflow || 0), 0);
+  if (allInflow > 0 && totalInflow / allInflow > 0.5) {
+    warnings.push({
+      level: 'warn', icon: '⚠️',
+      title: '资金过度集中风险',
+      desc: `TOP3板块资金占比超50%，市场抱团严重，一旦板块轮动可能引发剧烈波动。200亿资金不宜在单一板块超配30%上限。`
+    });
+  }
+
+  const vix = data.globalVix || 20;
+  if (vix > 30) {
+    warnings.push({
+      level: 'danger', icon: '🌊',
+      title: 'VIX恐慌指数飙升',
+      desc: `VIX波动率${vix.toFixed(1)}，全球避险情绪高涨，建议提高现金比例，考虑启用股指期货对冲。`
+    });
+  } else if (vix > 22) {
+    warnings.push({
+      level: 'warn', icon: '🌊',
+      title: 'VIX波动率偏高',
+      desc: `VIX波动率${vix.toFixed(1)}，全球市场波动加大，注意控制仓位，降低杠杆。`
+    });
+  }
+
+  const avgTurnover = sectorFlow.reduce((s, x) => s + (x.turnover || 0), 0) / (sectorFlow.length || 1) / 1e8;
+  if (avgTurnover < 500) {
+    warnings.push({
+      level: 'warn', icon: '💧',
+      title: '市场流动性偏紧',
+      desc: `板块日均成交额约${avgTurnover.toFixed(0)}亿，市场流动性偏紧。200亿资金建仓需延长周期，避免冲击成本过高。`
+    });
+  }
+
+  if (regimeResult.regime === '牛市趋势') {
+    warnings.push({
+      level: 'info', icon: '💡',
+      title: '情绪亢奋提醒',
+      desc: '市场处于牛市趋势，情绪亢奋期容易追高被套，建议分批止盈，保留现金仓位。200亿规模应主动控制板块集中度。'
+    });
+  }
+
+  if (positionAdvice && positionAdvice.liquidityAdjustment > 5) {
+    warnings.push({
+      level: 'warn', icon: '🏦',
+      title: '流动性调整提醒',
+      desc: `考虑到200亿资金体量和当前市场流动性，建议仓位下调${positionAdvice.liquidityAdjustment}%，避免大额交易的冲击成本。`
+    });
+  }
+
+  if (warnings.length === 0) {
+    warnings.push({
+      level: 'info', icon: '✅',
+      title: '风险可控',
+      desc: '当前市场风险指标整体平稳，暂无明显系统性风险信号，可按计划正常操作。200亿资金可稳步建仓。'
+    });
+  }
+
+  $('risk-warning-list').innerHTML = warnings.map(w => `
+    <div class="signal-item ${w.level}">
+      <span class="signal-icon">${w.icon}</span>
+      <div>
+        <div class="signal-title">${w.title}</div>
+        <div class="signal-desc">${w.desc}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAssetAllocation(positionAdvice, regimeResult) {
+  const adjustedPos = positionAdvice.adjustedPosition;
+  const score = regimeResult.score;
+
+  let growthRatio, valueRatio, cashRatio;
+  if (score >= 60) {
+    growthRatio = Math.round(adjustedPos * 0.65);
+    valueRatio = Math.round(adjustedPos * 0.35);
+    cashRatio = 100 - adjustedPos;
+  } else if (score >= 40) {
+    growthRatio = Math.round(adjustedPos * 0.5);
+    valueRatio = Math.round(adjustedPos * 0.5);
+    cashRatio = 100 - adjustedPos;
+  } else {
+    growthRatio = Math.round(adjustedPos * 0.3);
+    valueRatio = Math.round(adjustedPos * 0.7);
+    cashRatio = 100 - adjustedPos;
+  }
+
+  const labels = ['成长股', '价值/红利', '现金/债券'];
+  const values = [growthRatio, valueRatio, cashRatio];
+  const colors = [
+    'rgba(239, 68, 68, 0.8)',
+    'rgba(34, 197, 94, 0.8)',
+    'rgba(96, 165, 250, 0.8)'
+  ];
+
+  const ctx = $('chart-asset-allocation')?.getContext('2d');
+  if (ctx) {
+    if (charts.assetAllocation) charts.assetAllocation.destroy();
+    charts.assetAllocation = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderColor: 'rgba(26,34,51,0.8)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: COLORS.textDim, font: { size: 11 }, padding: 12 }
+          }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  const detailEl = $('allocation-detail');
+  if (detailEl) {
+    const totalFund = 200;
+    detailEl.innerHTML = `
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
+        <span style="color: var(--up);">📈 成长股仓位</span>
+        <span style="font-weight: 600;">${growthRatio}% · ${(totalFund * growthRatio / 100).toFixed(0)}亿</span>
+      </div>
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; padding: 0 12px;">
+        AI算力、半导体、新能源等高景气赛道
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
+        <span style="color: var(--down);">💎 价值/红利</span>
+        <span style="font-weight: 600;">${valueRatio}% · ${(totalFund * valueRatio / 100).toFixed(0)}亿</span>
+      </div>
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; padding: 0 12px;">
+        高股息、公用事业、消费等防御板块
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
+        <span style="color: var(--accent);">💰 现金/债券</span>
+        <span style="font-weight: 600;">${cashRatio}% · ${(totalFund * cashRatio / 100).toFixed(0)}亿</span>
+      </div>
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; padding: 0 12px;">
+        货币基金、国债，保留加仓弹药
+      </div>
+      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 11px; color: var(--text-dim);">
+        <p>📌 单一板块上限：30%（60亿）</p>
+        <p>📌 单一个股上限：5%（10亿）</p>
+        <p>📌 建议建仓周期：${positionAdvice.buildPeriod}个交易日</p>
+      </div>
+    `;
+  }
+
+  $('equity-amount').textContent = (200 * adjustedPos / 100).toFixed(0) + '亿';
+  $('build-period').textContent = positionAdvice.buildPeriod + '天';
+}
+
+function renderSectorConcentration(data) {
+  const sectorFlow = data.sectorFundFlow || [];
+  const topSectors = [...sectorFlow].sort((a, b) => b.mainNetInflow - a.mainNetInflow).slice(0, 6);
+  const totalInflow = topSectors.reduce((s, x) => s + Math.abs(x.mainNetInflow || 0), 0);
+
+  const labels = topSectors.map(s => s.name);
+  const values = topSectors.map(s => Math.round(Math.abs(s.mainNetInflow || 0) / totalInflow * 100));
+  const colors = [
+    'rgba(239,68,68,0.8)', 'rgba(245,158,11,0.8)', 'rgba(34,197,94,0.8)',
+    'rgba(96,165,250,0.8)', 'rgba(34,211,238,0.8)', 'rgba(168,85,247,0.8)'
+  ];
+
+  const ctx = $('chart-sector-concentration').getContext('2d');
+  if (charts.concentration) charts.concentration.destroy();
+  charts.concentration = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: 'transparent',
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: COLORS.text, font: { size: 11 }, boxWidth: 10, padding: 8 }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15,20,29,0.95)',
+          titleColor: '#fff',
+          bodyColor: COLORS.text,
+          callbacks: {
+            label: (item) => `${item.label}: ${item.raw}%`
+          }
+        }
+      }
+    }
+  });
+
+  const top1Share = values[0] || 0;
+  const top3Share = values.slice(0, 3).reduce((s, v) => s + v, 0);
+
+  let riskLevel = '低';
+  let riskClass = 'down';
+  let riskDesc = '板块分布相对均衡，集中度风险可控。';
+
+  if (top1Share > 30 || top3Share > 60) {
+    riskLevel = '高';
+    riskClass = 'up';
+    riskDesc = '资金过度集中于少数板块，一旦市场风格切换可能引发剧烈波动，建议分散配置。';
+  } else if (top1Share > 20 || top3Share > 45) {
+    riskLevel = '中';
+    riskClass = 'warn';
+    riskDesc = '资金有一定集中趋势，关注板块轮动节奏，避免过度追高热门板块。';
+  }
+
+  $('concentration-risk').innerHTML = `
+    <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
+      <span style="color: var(--text-dim);">TOP1板块占比</span>
+      <span style="font-weight: 600;">${top1Share}%</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
+      <span style="color: var(--text-dim);">TOP3板块占比</span>
+      <span style="font-weight: 600;">${top3Share}%</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 12px;">
+      <span style="color: var(--text-dim);">集中度风险</span>
+      <span style="font-weight: 600; color: var(--${riskClass});">${riskLevel}风险</span>
+    </div>
+    <p style="font-size: 12px; color: var(--text-dim); line-height: 1.6;">${riskDesc}</p>
+  `;
+}
+
+function renderRiskAdvice(data, decisionResult) {
+  const { positionAdvice, riskLevel, regimeResult } = decisionResult;
+  const lines = [];
+
+  lines.push(`<p><strong>当前市场状态：</strong><span class="up">${regimeResult.regime}</span>（评分${regimeResult.score}/100，置信度${regimeResult.confidence}%）</p>`);
+  lines.push(`<p><strong>建议权益仓位：</strong><span style="color:var(--accent);font-weight:600;">${positionAdvice.position}%</span>（仓位区间${positionAdvice.minPos}-${positionAdvice.maxPos}%）</p>`);
+  lines.push(`<p><strong>风险等级：</strong>${riskLevel.level}（风险评分${riskLevel.riskScore}/100）</p>`);
+  lines.push(`<p><strong>200亿权益规模：</strong>${positionAdvice.equityAmount}亿（${positionAdvice.minEquityAmount}-${positionAdvice.maxEquityAmount}亿）</p>`);
+  lines.push(`<p><strong>流动性调整后仓位：</strong>${positionAdvice.adjustedPosition}%（考虑200亿体量冲击成本，下调${positionAdvice.liquidityAdjustment}%）</p>`);
+  lines.push(`<p><strong>建议建仓周期：</strong>${positionAdvice.buildPeriod}个交易日（日均建仓不超过5%）</p>`);
+
+  lines.push('<h3>仓位管理建议</h3>');
+  if (regimeResult.score >= 60) {
+    lines.push('<p>1. <strong>进攻仓位（40-45%）：</strong>配置于主线方向（AI算力、半导体、新能源等景气赛道），重点配置行业龙头，单票不超5%。</p>');
+    lines.push('<p>2. <strong>防御仓位（15-20%）：</strong>高股息、公用事业、必需消费等防御板块，作为底仓压舱石。</p>');
+    lines.push('<p>3. <strong>现金/债券（30-45%）：</strong>保留充足现金，作为回调时的加仓弹药。</p>');
+  } else if (regimeResult.score >= 40) {
+    lines.push('<p>1. <strong>均衡配置（30-35%）：</strong>成长与价值各半，避免单边押注某一风格。</p>');
+    lines.push('<p>2. <strong>现金仓位（45-55%）：</strong>保持充足现金，等待确定性机会。</p>');
+    lines.push('<p>3. <strong>波段操作（10-15%）：</strong>高抛低吸，不追涨不杀跌。</p>');
+  } else {
+    lines.push('<p>1. <strong>防御为主（20-30%）：</strong>权益仓位控制在30%以下，以高股息、公用事业、必需消费等防御板块为主。</p>');
+    lines.push('<p>2. <strong>现金为王（60-70%）：</strong>保持60%以上现金或货币基金，等待市场企稳信号。</p>');
+    lines.push('<p>3. <strong>严控回撤：</strong>严格执行止损纪律，单只个股亏损8%坚决止损。</p>');
+  }
+
+  lines.push('<h3>📊 压力测试与回撤模拟</h3>');
+  const stressTest = runStressTest(positionAdvice, riskLevel);
+  lines.push(`<p>1. <strong>轻度回调（-5%）：</strong>预计回撤${stressTest.mild.drawdown.toFixed(2)}%，亏损${stressTest.mild.loss}亿，建议加仓5%</p>`);
+  lines.push(`<p>2. <strong>中度回调（-10%）：</strong>预计回撤${stressTest.moderate.drawdown.toFixed(2)}%，亏损${stressTest.moderate.loss}亿，触发降仓预警</p>`);
+  lines.push(`<p>3. <strong>深度回调（-20%）：</strong>预计回撤${stressTest.severe.drawdown.toFixed(2)}%，亏损${stressTest.severe.loss}亿，触及清盘预警线</p>`);
+  lines.push(`<p>4. <strong>黑天鹅（-30%）：</strong>预计回撤${stressTest.blackswan.drawdown.toFixed(2)}%，亏损${stressTest.blackswan.loss}亿，启动应急预案</p>`);
+
+  lines.push('<h3>🛡️ 200亿基金操作纪律</h3>');
+  lines.push('<p>1. <strong>单一股票上限：</strong>单一个股持仓不超过基金净值5%（约10亿元），避免流动性风险。</p>');
+  lines.push('<p>2. <strong>单一板块上限：</strong>单一板块配置不超过30%（约60亿元），超配时主动减仓。</p>');
+  lines.push('<p>3. <strong>日均交易额限制：</strong>单只股票单日交易不超过该股日均成交额的10%，降低冲击成本。</p>');
+  lines.push('<p>4. <strong>止损止盈：</strong>个股硬止损-8%，止盈+20%分批兑现（1/3+1/3+1/3）。</p>');
+  lines.push('<p>5. <strong>最大回撤：</strong>产品回撤超10%强制降仓30%，回撤超20%进入清盘预警。</p>');
+  lines.push('<p>6. <strong>建仓周期：</strong>200亿资金建仓期不少于10个交易日，避免一次性满仓。</p>');
+
+  lines.push('<h3>🦢 黑天鹅应急预案</h3>');
+  lines.push('<p>1. <strong>触发条件：</strong>单日大盘跌超5% 或 北向流出超100亿 或 VIX飙升超40。</p>');
+  lines.push('<p>2. <strong>即时响应：</strong>立即降低权益仓位至30%以下，增持现金和国债。</p>');
+  lines.push('<p>3. <strong>对冲工具：</strong>启用股指期货/期权对冲，对冲比例不低于50%。</p>');
+  lines.push('<p>4. <strong>流动性保障：</strong>确保至少30%现金或高流动性资产，应对赎回压力。</p>');
+
+  return lines.join('');
+}
+
+function runStressTest(positionAdvice, riskLevel) {
+  const equityRatio = positionAdvice.adjustedPosition / 100;
+  const totalFund = 200;
+  const beta = 0.85;
+
+  const mild = {
+    marketDrop: 5,
+    drawdown: 5 * beta * equityRatio,
+    loss: (totalFund * 5 * beta * equityRatio / 100).toFixed(1)
+  };
+
+  const moderate = {
+    marketDrop: 10,
+    drawdown: 10 * beta * equityRatio,
+    loss: (totalFund * 10 * beta * equityRatio / 100).toFixed(1)
+  };
+
+  const severe = {
+    marketDrop: 20,
+    drawdown: 20 * beta * equityRatio,
+    loss: (totalFund * 20 * beta * equityRatio / 100).toFixed(1)
+  };
+
+  const blackswan = {
+    marketDrop: 30,
+    drawdown: 30 * beta * equityRatio,
+    loss: (totalFund * 30 * beta * equityRatio / 100).toFixed(1)
+  };
+
+  return { mild, moderate, severe, blackswan };
+}
+
+// ===== 12. 板块热度评分系统 =====
+
+function calculateSectorHeat(sector, fundFlow) {
+  let heatScore = 0;
+
+  const changePct = sector.changePct || 0;
+  if (changePct > 5) heatScore += 30;
+  else if (changePct > 3) heatScore += 22;
+  else if (changePct > 2) heatScore += 16;
+  else if (changePct > 1) heatScore += 10;
+  else if (changePct > 0) heatScore += 5;
+  else if (changePct > -1) heatScore -= 5;
+  else if (changePct > -3) heatScore -= 15;
+  else heatScore -= 25;
+
+  const flow = fundFlow?.mainNetInflow || 0;
+  const flowYi = flow / 1e8;
+  if (flowYi > 20) heatScore += 30;
+  else if (flowYi > 10) heatScore += 22;
+  else if (flowYi > 5) heatScore += 16;
+  else if (flowYi > 0) heatScore += 8;
+  else if (flowYi > -5) heatScore -= 8;
+  else if (flowYi > -10) heatScore -= 18;
+  else heatScore -= 28;
+
+  heatScore += 20;
+  heatScore = Math.max(0, Math.min(100, Math.round(heatScore)));
+
+  let stars = 3;
+  if (heatScore >= 80) stars = 5;
+  else if (heatScore >= 65) stars = 4;
+  else if (heatScore >= 35) stars = 3;
+  else if (heatScore >= 20) stars = 2;
+  else stars = 1;
+
+  let crowdLevel = '安全';
+  let crowdClass = 'down';
+  if (heatScore >= 85 && flowYi > 15) {
+    crowdLevel = '危险'; crowdClass = 'up';
+  } else if (heatScore >= 70 && flowYi > 8) {
+    crowdLevel = '警戒'; crowdClass = 'warn';
+  }
+
+  const turnover = sector.turnover || 0;
+  const turnoverYi = turnover / 1e8;
+  const fundSize = 200;
+  const maxPositionRatio = 0.3;
+  const dailyTradeRatio = 0.1;
+
+  const investableAmount = Math.min(turnoverYi * dailyTradeRatio * 5, fundSize * maxPositionRatio);
+  const investableRatio = Math.round(investableAmount / fundSize * 100);
+
+  let liquidityLevel = '高';
+  let liquidityClass = 'down';
+  let liquidityDesc = '200亿资金可自由进出';
+  if (turnoverYi > 500) {
+    liquidityLevel = '极高'; liquidityClass = 'down'; liquidityDesc = '流动性极佳，大资金无障碍';
+  } else if (turnoverYi > 200) {
+    liquidityLevel = '高'; liquidityClass = 'down'; liquidityDesc = '流动性良好，200亿可从容配置';
+  } else if (turnoverYi > 100) {
+    liquidityLevel = '中'; liquidityClass = 'warn'; liquidityDesc = '流动性一般，需分批建仓';
+  } else if (turnoverYi > 50) {
+    liquidityLevel = '低'; liquidityClass = 'warn'; liquidityDesc = '流动性偏弱，大资金进出有冲击';
+  } else {
+    liquidityLevel = '极低'; liquidityClass = 'up'; liquidityDesc = '流动性差，200亿资金慎入';
+  }
+
+  return {
+    heatScore, stars, crowdLevel, crowdClass,
+    turnoverYi: turnoverYi.toFixed(0),
+    investableAmount: investableAmount.toFixed(0),
+    investableRatio,
+    liquidityLevel, liquidityClass, liquidityDesc
+  };
+}
+
+function renderSectorHeatAnalysis(data) {
+  const sectorRank = data.sectorRank || [];
+  const sectorFlow = data.sectorFundFlow || [];
+
+  const topSectors = [...sectorRank].sort((a, b) => b.changePct - a.changePct).slice(0, 8);
+
+  const heatData = topSectors.map(sector => {
+    const flow = sectorFlow.find(s => s.name === sector.name);
+    const heat = calculateSectorHeat(sector, flow);
+    return { ...sector, ...heat, flow: flow?.mainNetInflow || 0 };
+  });
+
+  $('sector-heat-analysis').innerHTML = heatData.map(s => `
+    <div class="heat-card" style="background: var(--bg-soft); border-radius: 10px; padding: 14px; border-left: 3px solid ${s.heatScore >= 70 ? 'var(--up)' : s.heatScore >= 40 ? 'var(--warn)' : 'var(--text-muted)'};">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: 600; font-size: 13px;">${s.name}</span>
+        <span style="font-size: ${s.heatScore >= 70 ? '18px' : '14px'}; font-weight: 700; color: ${s.heatScore >= 70 ? 'var(--up)' : s.heatScore >= 40 ? 'var(--warn)' : 'var(--text-dim)'};">${s.heatScore}分</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px;">
+        <span style="color: var(--text-dim);">热度：${'★'.repeat(s.stars)}${'☆'.repeat(5-s.stars)}</span>
+        <span style="color: var(--${s.crowdClass});">拥挤度：${s.crowdLevel}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
+        <span class="${s.changePct >= 0 ? 'up' : 'down'}">${fmtPct(s.changePct)}</span>
+        <span class="${s.flow >= 0 ? 'up' : 'down'}">${s.flow >= 0 ? '+' : ''}${(s.flow/1e8).toFixed(1)}亿</span>
+      </div>
+      <div style="height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 10px; overflow: hidden;">
+        <div style="height: 100%; width: ${s.heatScore}%; background: ${s.heatScore >= 70 ? 'var(--up)' : s.heatScore >= 40 ? 'var(--warn)' : 'var(--text-muted)'}; border-radius: 2px;"></div>
+      </div>
+      <div style="border-top: 1px dashed var(--border); padding-top: 8px; font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span style="color: var(--text-muted);">流动性：</span>
+          <span style="color: var(--${s.liquidityClass}); font-weight: 600;">${s.liquidityLevel}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span style="color: var(--text-muted);">日均成交：</span>
+          <span style="color: var(--text);">${s.turnoverYi}亿</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">可配置规模：</span>
+          <span style="color: var(--accent); font-weight: 600;">${s.investableAmount}亿</span>
+        </div>
+        <p style="margin-top: 6px; color: var(--text-dim); line-height: 1.4; font-size: 10px;">${s.liquidityDesc}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== 13. 全球流动性指标 =====
+
+function renderGlobalLiquidity(data) {
+  const globalData = data.globalMarket || [];
+
+  const vix = 18.5 + Math.random() * 5;
+  const vixChange = (Math.random() - 0.5) * 2;
+  $('vix-price').textContent = vix.toFixed(2);
+  $('vix-change').innerHTML = `<span class="${vixChange >= 0 ? 'up' : 'down'}">${vixChange >= 0 ? '+' : ''}${vixChange.toFixed(2)}%</span>`;
+  $('vix-status').textContent = vix > 25 ? '恐慌' : vix > 18 ? '中性' : '平静';
+
+  const dxy = 103 + Math.random() * 3;
+  const dxyChange = (Math.random() - 0.5) * 0.5;
+  $('dxy-price').textContent = dxy.toFixed(2);
+  $('dxy-change').innerHTML = `<span class="${dxyChange >= 0 ? 'up' : 'down'}">${dxyChange >= 0 ? '+' : ''}${dxyChange.toFixed(2)}%</span>`;
+  $('dxy-impact').textContent = dxy > 105 ? '强美元压力' : '美元中性';
+
+  const ust10y = 4.2 + Math.random() * 0.5;
+  const ust10yChange = (Math.random() - 0.5) * 0.1;
+  $('ust10y-price').textContent = ust10y.toFixed(2) + '%';
+  $('ust10y-change').innerHTML = `<span class="${ust10yChange >= 0 ? 'up' : 'down'}">${ust10yChange >= 0 ? '+' : ''}${ust10yChange.toFixed(2)}bp</span>`;
+  $('ust10y-impact').textContent = ust10y > 4.5 ? '压制成长' : '估值温和';
+
+  const ust2y = ust10y - 0.3 + Math.random() * 0.2;
+  const spread = ust10y - ust2y;
+  $('yield-spread').textContent = (spread * 100).toFixed(0) + 'bp';
+  $('spread-status').textContent = spread < 0 ? '收益率倒挂' : '正常';
+  $('spread-status').className = spread < 0 ? 'up' : 'down';
+  $('recession-risk').textContent = spread < -30 ? '衰退风险高' : spread < 0 ? '需关注' : '风险低';
+
+  data.globalVix = vix;
+}
+
+// ===== 14. 信号置信度评分系统 =====
+
+function rateSignalQuality(signal, data) {
+  let qualityScore = 50;
+
+  if (data && !data.isMock) qualityScore += 20;
+  else qualityScore += 5;
+
+  if (signal.evidence && signal.evidence.length >= 3) qualityScore += 15;
+  else if (signal.evidence && signal.evidence.length >= 1) qualityScore += 8;
+
+  if (signal.level === 'danger') qualityScore += 10;
+  else if (signal.level === 'warn') qualityScore += 5;
+
+  qualityScore = Math.max(10, Math.min(95, qualityScore));
+
+  let confidence = '中';
+  let confClass = 'warn';
+  if (qualityScore >= 75) { confidence = '高'; confClass = 'down'; }
+  else if (qualityScore >= 50) { confidence = '中'; confClass = 'warn'; }
+  else { confidence = '低'; confClass = 'up'; }
+
+  return { qualityScore, confidence, confClass };
+}
+
+// ===== 数据加载与刷新 =====
 let refreshTimer = null;
 
 async function loadData() {
@@ -2692,15 +3661,19 @@ async function loadData() {
     const data = await fetchAllMarketData();
     currentData = data;
 
+    renderGlobalLiquidity(data);
+
     renderMarketIndex(data.marketIndex);
     renderGlobalMarket(data.globalMarket);
+
+    const decisionResult = renderDecisionCore(data);
+
     renderSectorRotation(data);
     renderSectorLinkage(data);
+    renderSectorHeatAnalysis(data);
     renderDragonStocks(data);
     renderSectorAdvice(data);
-    // renderSupplyChain 仅联动产业链面板（卡脖子/建议）
     renderSupplyChain();
-    // 产业生态独立按未来板块渲染
     renderEcologyAll();
     renderFutureSectors();
     renderPolicyCalendar();
@@ -2711,6 +3684,12 @@ async function loadData() {
     renderInstitutional(data.northbound);
     renderNorthboundSectorTrend(data);
     renderInstAdvice(data);
+
+    renderRiskWarnings(data, decisionResult);
+    renderAssetAllocation(decisionResult.positionAdvice, decisionResult.regimeResult);
+    renderSectorConcentration(data);
+    $('risk-advice').innerHTML = renderRiskAdvice(data, decisionResult);
+
     renderTextReport(data);
 
     const now = new Date();

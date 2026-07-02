@@ -15,6 +15,143 @@ const COLORS = {
 let currentData = null;
 let charts = {};
 
+// ===== 四大思路时间颗粒度对齐表 =====
+// 不同投资思路对应不同数据周期，避免用短期数据做长期决策
+const TIME_HORIZONS = {
+  rotation:    { label: '1天-1周',  scope: '当日资金流向 + 5日主力净流入', thought: '思路①板块轮动', desc: '跟着资金走，换仓快' },
+  signal:      { label: '1周-1月',  scope: '价格趋势 + 行业景气度', thought: '思路②身边反常信号', desc: '发现结构性变化，验证趋势' },
+  supplychain: { label: '1月-3月',  scope: '产能/订单/催化剂', thought: '思路③供应链狙击', desc: '找卡脖子节点，等催化剂' },
+  ecology:     { label: '1年-10年', scope: '长周期产业趋势 + 链主飞轮', thought: '思路④产业生态构建', desc: '用长远眼光布局链主' }
+};
+
+// ===== 国家政策数据仓库 =====
+// 政策无法实时抓取，采用静态知识库 + 受益板块映射，定期人工维护
+const POLICY_DATA = {
+  // 近期 + 预期政策日历
+  calendar: [
+    { date: '2026-07-15', title: '中央深改委会议', level: 'high', direction: '利好',
+      desc: '预计审议科技体制改革、新质生产力相关文件，强调关键核心技术攻关。',
+      sectors: ['半导体', 'AI算力', '军工'], horizon: '1-3年' },
+    { date: '2026-07-20', title: '国务院常务会议（稳增长）', level: 'high', direction: '利好',
+      desc: '部署扩内需、稳地产、促消费举措，专项债发行提速。',
+      sectors: ['房地产', '基建', '消费', '建材'], horizon: '3-6月' },
+    { date: '2026-08-01', title: '央行MLF/利率决议', level: 'medium', direction: '待定',
+      desc: '关注流动性投放力度，若降息利好成长股估值修复。',
+      sectors: ['银行', '券商', '成长股'], horizon: '1-3月' },
+    { date: '2026-08-15', title: '半导体税收优惠到期评估', level: 'high', direction: '利好',
+      desc: '国产半导体企业税收优惠延续政策评估，影响设备/材料公司利润。',
+      sectors: ['半导体', '光刻机', '半导体材料'], horizon: '1年' },
+    { date: '2026-09-01', title: '低空经济实施方案落地', level: 'high', direction: '利好',
+      desc: '各地低空经济示范区方案密集落地，eVTOL适航认证推进。',
+      sectors: ['低空经济', '无人机', '碳纤维'], horizon: '1-2年' },
+    { date: '2026-09-15', title: '医保谈判/集采', level: 'medium', direction: '中性偏空',
+      desc: '创新药医保谈判降价幅度关注，CXO订单价格压力。',
+      sectors: ['创新药', 'CXO', '医疗器械'], horizon: '6月' },
+    { date: '2026-10-01', title: '十四五收官 + 十五五规划征求意见', level: 'high', direction: '利好',
+      desc: '十五五规划重点方向征求意见，新质生产力、安全发展主线。',
+      sectors: ['AI算力', '半导体', '新能源', '军工', '低空经济'], horizon: '5年' },
+    { date: '2026-12-01', title: '中央经济工作会议', level: 'high', direction: '待定',
+      desc: '定调明年经济工作总基调，财政/货币政策取向。',
+      sectors: ['全市场'], horizon: '1年' }
+  ],
+  // 长期政策主线 + 受益板块
+  mainlines: [
+    { name: '新质生产力', icon: '🚀', intensity: '强', horizon: '5-10年',
+      desc: '中央经济工作会议首要任务，科技创新驱动生产力跃升。',
+      sectors: ['AI算力', '半导体', '人形机器人', '低空经济', '量子计算'],
+      stocks: '中际旭创、北方华创、寒武纪、科大讯飞' },
+    { name: '国产替代/自主可控', icon: '🛡️', intensity: '强', horizon: '3-5年',
+      desc: '关键核心技术攻关，半导体、工业软件、高端机床国产化。',
+      sectors: ['半导体', '光刻机', 'EDA', '高端机床', '工业软件'],
+      stocks: '北方华创、中微公司、华大九天、科德数控' },
+    { name: '能源安全/双碳', icon: '🌱', intensity: '中强', horizon: '5-10年',
+      desc: '新型电力系统建设，新能源消纳，储能规模化。',
+      sectors: ['光伏', '风电', '储能', '核电', '特高压'],
+      stocks: '宁德时代、隆基绿能、阳光电源、特变电工' },
+    { name: '扩内需/促消费', icon: '🛒', intensity: '中', horizon: '6月-1年',
+      desc: '以旧换新、消费品下乡，稳定房地产与消费基本盘。',
+      sectors: ['家电', '汽车', '消费', '房地产', '建材'],
+      stocks: '美的集团、比亚迪、海尔智家、保利发展' },
+    { name: '国防安全/装备放量', icon: '✈️', intensity: '强', horizon: '5-10年',
+      desc: '建军百年奋斗目标，装备列装加速，军工现代化。',
+      sectors: ['军工', '航空发动机', '军工电子', '新材料'],
+      stocks: '航发动力、中航沈飞、振华科技、西部超导' },
+    { name: '数据要素/数字经济', icon: '💾', intensity: '中强', horizon: '3-5年',
+      desc: '数据资产入表、数据交易、AI+千行百业。',
+      sectors: ['AI算力', '数据中心', '数据要素', '信创'],
+      stocks: '易华录、深桑达、浪潮信息、中科曙光' }
+  ]
+};
+
+// ===== 未来板块前瞻仓库 =====
+// 不是看今天的产业链，而是3-5年后的产业方向（思路④长远布局）
+const FUTURE_SECTORS = [
+  {
+    name: '固态电池', icon: '🔋', stage: '产业化前夕',
+    horizon: '2026-2028', maturity: 65, layoutTime: '当下分批布局',
+    desc: '能量密度突破500Wh/kg，解决安全与续航痛点，是锂电池下一代革命。',
+    catalyst: '丰田/宁德/卫蓝中试线投产、车企搭载上车',
+    stocks: '宁德时代、卫蓝新能源、赣锋锂业、当升科技、上海洗霸',
+    relatedChain: 'newenergy'
+  },
+  {
+    name: '人形机器人', icon: '🤖', stage: '量产元年',
+    horizon: '2026-2030', maturity: 45, layoutTime: '关注特斯拉Optimus量产进度',
+    desc: 'AI大模型赋能+硬件成本下降，人形机器人从实验室走向工厂。',
+    catalyst: '特斯拉Optimus量产、宇树/智元订单、政策支持',
+    stocks: '绿的谐波、汇川技术、三花智控、鸣志电器、双环传动',
+    relatedChain: 'ai'
+  },
+  {
+    name: '低空经济', icon: '🚁', stage: '政策催化期',
+    horizon: '2025-2028', maturity: 55, layoutTime: '政策落地密集期',
+    desc: 'eVTOL+无人机+通用航空，万亿级新赛道，各地示范区密集落地。',
+    catalyst: 'eVTOL适航认证、空域开放、采购订单',
+    stocks: '亿航智能、中信海直、纵横股份、光威复材、卧龙电驱',
+    relatedChain: 'military'
+  },
+  {
+    name: '商业航天', icon: '🚀', stage: '火箭复用突破期',
+    horizon: '2025-2030', maturity: 40, layoutTime: '可回收火箭验证成功后',
+    desc: '卫星互联网+可回收火箭，对标SpaceX，国产商业航天进入快车道。',
+    catalyst: '朱雀/双曲线可回收火箭、星网组网发射',
+    stocks: '航天电器、铖昌科技、斯瑞新材、中国卫通、中科星图',
+    relatedChain: 'military'
+  },
+  {
+    name: '可控核聚变', icon: '⚛️', stage: '实验堆阶段',
+    horizon: '2030-2040', maturity: 20, layoutTime: '超长期观察',
+    desc: '终极能源方案，AI助力等离子体约束突破，BEST/CFETR实验堆推进。',
+    catalyst: 'AI+聚变突破、BEST建成放电、私人聚变公司融资',
+    stocks: '西部超导、永鼎股份、国光电气、安泰科技',
+    relatedChain: 'newenergy'
+  },
+  {
+    name: '脑机接口', icon: '🧠', stage: '临床突破期',
+    horizon: '2026-2035', maturity: 30, layoutTime: '临床获批催化',
+    desc: 'Neuralink+国内梯队临床推进，医疗应用先行，消费级远期。',
+    catalyst: 'Neuralink大规模人体试验、国内临床获批',
+    stocks: '脑虎科技(未上市)、迈普医学、三博脑科、创新医疗',
+    relatedChain: 'pharma'
+  },
+  {
+    name: '量子计算', icon: '🔢', stage: 'NISQ era→纠错',
+    horizon: '2028-2035', maturity: 25, layoutTime: '超长期观察',
+    desc: '量子纠错突破临界点，AI+量子混合计算，超导/离子阱路线竞赛。',
+    catalyst: 'IBM 1000+比特、国内"祖冲之"升级、纠错里程碑',
+    stocks: '国盾量子、本源量子(未上市)、科大国创、光迅科技',
+    relatedChain: 'ai'
+  },
+  {
+    name: '6G通信', icon: '📡', stage: '标准制定期',
+    horizon: '2028-2035', maturity: 25, layoutTime: '标准冻结后',
+    desc: '太赫兹+星地融合+通感一体，6G标准2030年前后冻结。',
+    catalyst: 'ITU/3GPP标准推进、太赫兹芯片突破、星地互联验证',
+    stocks: '中兴通讯、信科移动、烽火通信、盛路通信',
+    relatedChain: 'ai'
+  }
+];
+
 // ===== 通用工具 =====
 function $(id) {
   const el = document.getElementById(id);
@@ -1014,6 +1151,87 @@ function renderEcologyCases() {
   `).join('') : '<div class="empty-tip">该产业链暂无生态案例</div>';
 }
 
+// ===== 2h. 未来板块前瞻（思路④长远布局，不是看今天的链）=====
+function renderFutureSectors() {
+  const html = FUTURE_SECTORS.map(f => {
+    const maturityColor = f.maturity >= 60 ? 'var(--up)' : f.maturity >= 40 ? 'var(--warn)' : 'var(--text-dim)';
+    return `
+      <div class="future-card" data-chain="${f.relatedChain}">
+        <div class="future-header">
+          <span class="future-icon">${f.icon}</span>
+          <div class="future-title-block">
+            <div class="future-name">${f.name}</div>
+            <div class="future-stage">${f.stage}</div>
+          </div>
+          <span class="future-horizon">${f.horizon}</span>
+        </div>
+        <div class="future-maturity">
+          <span class="fm-label">成熟度</span>
+          <div class="fm-bar"><div class="fm-fill" style="width:${f.maturity}%;background:${maturityColor};"></div></div>
+          <span class="fm-val" style="color:${maturityColor};">${f.maturity}%</span>
+        </div>
+        <div class="future-desc">${f.desc}</div>
+        <div class="future-meta">
+          <div><strong>催化剂：</strong>${f.catalyst}</div>
+          <div><strong>布局时点：</strong><span style="color:var(--accent);">${f.layoutTime}</span></div>
+          <div><strong>关注标的：</strong>${f.stocks}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  $('future-sectors-list').innerHTML = html;
+  // 点击未来板块联动产业链
+  $('future-sectors-list').querySelectorAll('.future-card').forEach(card => {
+    card.addEventListener('click', () => selectChain(card.dataset.chain));
+  });
+}
+
+// ===== 2i. 国家政策影响 =====
+function renderPolicyCalendar() {
+  const sorted = [...POLICY_DATA.calendar].sort((a, b) => a.date.localeCompare(b.date));
+  $('policy-calendar').innerHTML = sorted.map(p => {
+    const levelCls = p.level === 'high' ? 'high' : (p.level === 'medium' ? 'medium' : 'low');
+    const dirCls = p.direction === '利好' ? 'up' : (p.direction === '中性偏空' || p.direction === '偏空') ? 'down' : 'neutral';
+    return `
+      <div class="policy-item">
+        <div class="policy-date">
+          <div class="pd-day">${p.date.slice(5)}</div>
+          <div class="pd-year">${p.date.slice(0,4)}</div>
+        </div>
+        <div class="policy-body">
+          <div class="policy-title">
+            <span class="policy-level ${levelCls}">${p.level === 'high' ? '★★★' : p.level === 'medium' ? '★★' : '★'}</span>
+            ${p.title}
+            <span class="policy-dir ${dirCls}">${p.direction}</span>
+            <span class="policy-horizon">影响周期 ${p.horizon}</span>
+          </div>
+          <div class="policy-desc">${p.desc}</div>
+          <div class="policy-sectors">受益：${p.sectors.map(s => `<span class="policy-tag">${s}</span>`).join('')}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderPolicyMainlines() {
+  $('policy-mainlines').innerHTML = POLICY_DATA.mainlines.map(m => {
+    const intensityCls = m.intensity === '强' ? 'up' : m.intensity === '中强' ? 'warn' : 'neutral';
+    return `
+      <div class="mainline-card">
+        <div class="mainline-header">
+          <span class="mainline-icon">${m.icon}</span>
+          <div class="mainline-name">${m.name}</div>
+          <span class="mainline-intensity ${intensityCls}">强度${m.intensity}</span>
+          <span class="mainline-horizon">${m.horizon}</span>
+        </div>
+        <div class="mainline-desc">${m.desc}</div>
+        <div class="mainline-sectors">受益板块：${m.sectors.map(s => `<span class="policy-tag">${s}</span>`).join('')}</div>
+        <div class="mainline-stocks">关注标的：${m.stocks}</div>
+      </div>
+    `;
+  }).join('');
+}
+
 // ===== 3. 大资金流向（板块资金）=====
 function renderFundFlow(data) {
   if (!data || !data.length) return;
@@ -1664,14 +1882,11 @@ async function loadData() {
     renderSectorLinkage(data);
     renderDragonStocks(data);
     renderSectorAdvice(data);
+    // renderSupplyChain 内部会联动渲染 卡脖子/链主/飞轮/投资动向/案例/建议
     renderSupplyChain();
-    renderBottleneckList();
-    renderSupplyAdvice();
-    renderChainLeaders();
-    renderEcologyFlywheel();
-    renderEcologyInvestment();
-    renderEcologyCases();
-    renderEcologyAdvice();
+    renderFutureSectors();
+    renderPolicyCalendar();
+    renderPolicyMainlines();
     renderShortTermSentiment(data);
     renderMarketSignals(data);
     renderFundFlow(data.sectorFundFlow);

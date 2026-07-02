@@ -581,7 +581,151 @@
     .case-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px; }
     .case-companies { font-size: 11px; color: var(--accent); }
 
-    /* ===== 通用滑动列表 ===== */
+    /* ===== 时间颗粒度标签 ===== */
+    .time-horizon-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .th-item {
+      background: var(--bg-soft);
+      border-radius: 8px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--accent);
+      font-size: 11px;
+    }
+    .th-item.rotation { border-left-color: var(--up); }
+    .th-item.signal { border-left-color: var(--warn); }
+    .th-item.supplychain { border-left-color: var(--info); }
+    .th-item.ecology { border-left-color: var(--accent); }
+    .th-thought { font-weight: 600; font-size: 12px; margin-bottom: 3px; }
+    .th-label { color: var(--accent); font-weight: 700; }
+    .th-scope { color: var(--text-dim); margin-top: 3px; font-size: 10px; }
+    .th-desc { color: var(--text-muted); font-size: 10px; margin-top: 2px; }
+    .horizon-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      background: var(--accent-bg);
+      color: var(--accent);
+      margin-left: 8px;
+      font-weight: 500;
+    }
+
+    /* ===== 政策风向 ===== */
+    .policy-calendar { display: flex; flex-direction: column; gap: 10px; }
+    .policy-item {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 14px;
+      padding: 12px;
+      background: var(--bg-soft);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+    .policy-date {
+      text-align: center;
+      border-right: 1px solid var(--border);
+      padding-right: 10px;
+    }
+    .pd-day { font-size: 16px; font-weight: 700; color: var(--accent); }
+    .pd-year { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .policy-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .policy-level { font-size: 11px; }
+    .policy-level.high { color: var(--up); }
+    .policy-level.medium { color: var(--warn); }
+    .policy-level.low { color: var(--text-dim); }
+    .policy-dir {
+      padding: 1px 8px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .policy-dir.up { background: var(--up-bg); color: var(--up); }
+    .policy-dir.down { background: var(--down-bg); color: var(--down); }
+    .policy-dir.neutral { background: var(--accent-bg); color: var(--accent); }
+    .policy-horizon { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+    .policy-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 6px; }
+    .policy-sectors { font-size: 11px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .policy-tag {
+      padding: 2px 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 10px;
+      color: var(--text);
+    }
+
+    .mainline-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    .mainline-card {
+      background: var(--bg-soft);
+      border-radius: 10px;
+      padding: 14px;
+      border-top: 3px solid var(--accent);
+    }
+    .mainline-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .mainline-icon { font-size: 18px; }
+    .mainline-name { font-weight: 700; font-size: 14px; }
+    .mainline-intensity {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .mainline-intensity.up { background: var(--up-bg); color: var(--up); }
+    .mainline-intensity.warn { background: var(--warn-bg); color: var(--warn); }
+    .mainline-intensity.neutral { background: var(--accent-bg); color: var(--accent); }
+    .mainline-horizon { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+    .mainline-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px; }
+    .mainline-sectors { font-size: 11px; margin-bottom: 6px; }
+    .mainline-sectors .policy-tag { color: var(--accent); }
+    .mainline-stocks { font-size: 11px; color: var(--text-dim); }
+
+    /* ===== 未来板块前瞻 ===== */
+    .future-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .future-card {
+      background: var(--bg-soft);
+      border-radius: 10px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .future-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(96,165,250,0.15); }
+    .future-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .future-icon { font-size: 22px; }
+    .future-title-block { flex: 1; }
+    .future-name { font-weight: 700; font-size: 14px; }
+    .future-stage { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .future-horizon {
+      font-size: 10px;
+      color: var(--accent);
+      background: var(--accent-bg);
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .future-maturity { display: grid; grid-template-columns: 50px 1fr 35px; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .fm-label { font-size: 10px; color: var(--text-muted); }
+    .fm-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .fm-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .fm-val { font-size: 11px; font-weight: 700; text-align: right; }
+    .future-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 10px; }
+    .future-meta { font-size: 11px; color: var(--text-dim); line-height: 1.7; }
+    .future-meta strong { color: var(--text); font-weight: 600; }
+
+    /* ===== 北向数据卡片 ===== */
     .scroll-list {
       max-height: 360px;
       overflow-y: auto;
@@ -1037,14 +1181,46 @@
       <button class="tab-btn active" data-tab="sector">📊 板块轮动龙头</button>
       <button class="tab-btn" data-tab="supply">🔗 产业链传导</button>
       <button class="tab-btn" data-tab="ecology">🌳 产业生态</button>
+      <button class="tab-btn" data-tab="policy">📜 政策风向</button>
       <button class="tab-btn" data-tab="market">📈 市场动态</button>
       <button class="tab-btn" data-tab="report">📝 分析报告</button>
+    </div>
+
+    <!-- 四大思路时间颗粒度对齐（常驻说明） -->
+    <div class="card" style="padding:14px 18px;">
+      <div class="card-title" style="margin-bottom:10px;">⏱️ 数据时间颗粒度对齐（不同思路用不同周期数据，避免错配）</div>
+      <div class="time-horizon-bar">
+        <div class="th-item rotation">
+          <div class="th-thought">① 板块轮动龙头</div>
+          <div class="th-label">1天-1周</div>
+          <div class="th-scope">当日资金流向 + 5日主力净流入</div>
+          <div class="th-desc">跟着资金走，换仓快</div>
+        </div>
+        <div class="th-item signal">
+          <div class="th-thought">② 身边反常信号</div>
+          <div class="th-label">1周-1月</div>
+          <div class="th-scope">价格趋势 + 行业景气度</div>
+          <div class="th-desc">发现结构性变化，验证趋势</div>
+        </div>
+        <div class="th-item supplychain">
+          <div class="th-thought">③ 供应链狙击</div>
+          <div class="th-label">1月-3月</div>
+          <div class="th-scope">产能/订单/催化剂</div>
+          <div class="th-desc">找卡脖子节点，等催化剂</div>
+        </div>
+        <div class="th-item ecology">
+          <div class="th-thought">④ 产业生态构建</div>
+          <div class="th-label">1年-10年</div>
+          <div class="th-scope">长周期产业趋势 + 链主飞轮</div>
+          <div class="th-desc">用长远眼光布局链主</div>
+        </div>
+      </div>
     </div>
 
     <!-- 板块轮动龙头 -->
     <div class="tab-panel active" id="panel-sector">
       <div class="card">
-        <div class="card-title">📊 热点板块排行 · 点击板块钻取详情</div>
+        <div class="card-title">📊 热点板块排行 · 点击板块钻取详情 <span class="horizon-tag">思路① · 1天-1周</span></div>
         <div class="grid-2">
           <div>
             <div class="chart-container">
@@ -1117,7 +1293,7 @@
     <!-- 产业链传导 -->
     <div class="tab-panel" id="panel-supply">
       <div class="card">
-        <div class="card-title">🔗 产业链拆解（点击切换产业链 · 与产业生态面板联动）</div>
+        <div class="card-title">🔗 产业链拆解（点击切换产业链 · 与产业生态面板联动）<span class="horizon-tag">思路③ · 1月-3月</span></div>
         <div class="chain-selector" id="supply-chain-tabs">
           <div class="empty-tip">加载中...</div>
         </div>
@@ -1153,7 +1329,7 @@
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">提示：点击上方任一产业链，下方链主/飞轮/投资动向/案例将同步切换。</div>
       </div>
       <div class="card">
-        <div class="card-title">🌳 链主公司追踪（当前产业链）</div>
+        <div class="card-title">🌳 链主公司追踪（当前产业链）<span class="horizon-tag">思路④ · 1年-10年</span></div>
         <div class="chain-leader-list" id="chain-leader-list">
           <div class="empty-tip">加载中...</div>
         </div>
@@ -1177,6 +1353,13 @@
         </div>
       </div>
       <div class="card">
+        <div class="card-title">🔮 未来板块前瞻（思路④·用长远眼光布局，非看今天的链）<span class="horizon-tag">周期 1年-10年</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">苏州当年不是看到今天的产业链才布局旭创，而是押注未来。下方为3-5年后的产业方向，点击卡片可联动切换产业链。</div>
+        <div class="future-list" id="future-sectors-list">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
         <div class="card-title">💡 产业生态投资策略建议</div>
         <div id="ecology-advice" class="text-report">
           <div class="empty-tip">加载中...</div>
@@ -1184,10 +1367,36 @@
       </div>
     </div>
 
+    <!-- 政策风向 -->
+    <div class="tab-panel" id="panel-policy">
+      <div class="card">
+        <div class="card-title">📅 政策日历（近期 + 预期政策）<span class="horizon-tag">人工维护库</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">政策无法实时抓取，采用静态知识库定期人工维护。关注政策催化带来的板块机会。</div>
+        <div class="policy-calendar scroll-list" id="policy-calendar">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🎯 长期政策主线 + 受益板块</div>
+        <div class="mainline-list" id="policy-mainlines">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">💡 政策投资策略建议</div>
+        <div class="text-report">
+          <p><strong>政策驱动逻辑：</strong>A股是政策市，国家战略方向决定长牛赛道。新质生产力、国产替代、能源安全是未来5-10年最确定的主线。</p>
+          <p><strong>短期催化：</strong>关注政策日历中的会议时点，会议前后相关板块常有预期交易，会后落地兑现。</p>
+          <p><strong>长期布局：</strong>在政策主线明确方向上，结合思路③卡脖子节点 + 思路④产业生态，用长钱穿越周期。</p>
+          <p><strong>风险提示：</strong>政策落地不及预期、补贴退坡、行业监管收紧（如教培、互联网）可能带来系统性风险。</p>
+        </div>
+      </div>
+    </div>
+
     <!-- 市场动态 -->
     <div class="tab-panel" id="panel-market">
       <div class="card">
-        <div class="card-title">⚡ 市场情绪分析</div>
+        <div class="card-title">⚡ 市场情绪分析 <span class="horizon-tag">思路② · 1周-1月</span></div>
         <div class="mood-stats">
           <div class="mood-stat">
             <div class="mood-stat-num" id="short-sentiment-score">--</div>

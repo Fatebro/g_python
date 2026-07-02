@@ -1222,21 +1222,62 @@ function renderInstAdvice(data) {
 }
 
 // ===== 2e. 产业生态构建（按「未来板块」切换，独立于产业链传导）=====
+// 按成熟度从高到低排序的未来板块（选择器专用）
+function getFutureSectorsSorted() {
+  return [...FUTURE_SECTORS].sort((a, b) => b.maturity - a.maturity);
+}
+
 function renderFutureSectorSelector() {
   const tabsEl = $('ecology-chain-tabs');
   if (!tabsEl) return;
-  tabsEl.innerHTML = FUTURE_SECTORS.map(f => `
-    <span class="chain-chip${f.name === currentFutureSector ? ' active' : ''}" data-future="${f.name}">${f.icon} ${f.name}</span>
+  const sorted = getFutureSectorsSorted();
+  tabsEl.innerHTML = sorted.map(f => `
+    <span class="chain-chip${f.name === currentFutureSector ? ' active' : ''}" data-future="${f.name}">${f.icon} ${f.name}<em class="chip-maturity">${f.maturity}%</em></span>
   `).join('');
   tabsEl.querySelectorAll('.chain-chip').forEach(chip => {
     chip.addEventListener('click', () => selectFutureSector(chip.dataset.future));
   });
+
+  // 选择器下方渲染当前未来板块的趋势摘要
+  renderFutureTrendSummary();
+}
+
+// 当前未来板块趋势摘要（选择器下方，与「未来板块前瞻」联动）
+function renderFutureTrendSummary() {
+  const el = $('future-trend-summary');
+  if (!el) return;
+  const meta = FUTURE_SECTORS.find(f => f.name === currentFutureSector) || FUTURE_SECTORS[0];
+  const maturityColor = meta.maturity >= 60 ? 'var(--up)' : meta.maturity >= 40 ? 'var(--warn)' : 'var(--text-dim)';
+  const stageColor = meta.maturity >= 60 ? 'up' : meta.maturity >= 40 ? 'warn' : 'neutral';
+  el.innerHTML = `
+    <div class="ft-summary">
+      <div class="ft-header">
+        <span class="ft-icon">${meta.icon}</span>
+        <div class="ft-title-block">
+          <div class="ft-name">${meta.name}</div>
+          <div class="ft-stage"><span class="mood-badge ${stageColor}">${meta.stage}</span></div>
+        </div>
+        <span class="ft-horizon">周期 ${meta.horizon}</span>
+      </div>
+      <div class="ft-maturity">
+        <span class="fm-label">成熟度</span>
+        <div class="fm-bar"><div class="fm-fill" style="width:${meta.maturity}%;background:${maturityColor};"></div></div>
+        <span class="fm-val" style="color:${maturityColor};">${meta.maturity}%</span>
+        <span class="fm-layout">📍 ${meta.layoutTime}</span>
+      </div>
+      <div class="ft-desc">${meta.desc}</div>
+      <div class="ft-catalyst"><strong>🎯 催化剂：</strong>${meta.catalyst}</div>
+      <div class="ft-stocks"><strong>📌 关注标的：</strong>${meta.stocks}</div>
+    </div>
+  `;
 }
 
 function selectFutureSector(name) {
   if (!name || name === currentFutureSector) return;
   currentFutureSector = name;
   renderEcologyAll();
+  // 联动「未来板块前瞻」卡片高亮
+  highlightFutureCard(name);
 }
 
 // 统一渲染产业生态（链主/飞轮/投资动向/案例/建议 + 选择器）
@@ -1313,10 +1354,11 @@ function renderEcologyAll() {
 
 // ===== 2h. 未来板块前瞻（思路④长远布局，不是看今天的链）=====
 function renderFutureSectors() {
-  const html = FUTURE_SECTORS.map(f => {
+  const sorted = getFutureSectorsSorted();
+  const html = sorted.map(f => {
     const maturityColor = f.maturity >= 60 ? 'var(--up)' : f.maturity >= 40 ? 'var(--warn)' : 'var(--text-dim)';
     return `
-      <div class="future-card" data-chain="${f.relatedChain}">
+      <div class="future-card${f.name === currentFutureSector ? ' selected' : ''}" data-future="${f.name}" data-chain="${f.relatedChain}">
         <div class="future-header">
           <span class="future-icon">${f.icon}</span>
           <div class="future-title-block">
@@ -1340,9 +1382,23 @@ function renderFutureSectors() {
     `;
   }).join('');
   $('future-sectors-list').innerHTML = html;
-  // 点击未来板块联动产业链
+  // 点击未来板块卡片：联动选择器 + 联动产业链
   $('future-sectors-list').querySelectorAll('.future-card').forEach(card => {
-    card.addEventListener('click', () => selectChain(card.dataset.chain));
+    card.addEventListener('click', () => {
+      const fname = card.dataset.future;
+      if (fname && fname !== currentFutureSector) {
+        selectFutureSector(fname);
+      }
+      const ckey = card.dataset.chain;
+      if (ckey && ckey !== currentChain) selectChain(ckey);
+    });
+  });
+}
+
+// 高亮「未来板块前瞻」中对应的卡片（与选择器联动）
+function highlightFutureCard(name) {
+  document.querySelectorAll('#future-sectors-list .future-card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.future === name);
   });
 }
 
@@ -1604,97 +1660,143 @@ function renderMarketSignals(data) {
   renderAbnormalSignals(data);
 }
 
-// ===== 5b. 反常信号检测（基于资金流入，思路②身边反常信号的数据化版本）=====
+// ===== 5b. 信号驱动资金流向（每个信号对应显示具体资金数据，而非一窝蜂全显示）=====
+// 思路②数据化：检测反常/突发信号，并内联展示触发该信号的具体板块/个股资金明细
 function renderAbnormalSignals(data) {
   const list = $('abnormal-signal-list');
   if (!list) return;
 
   const signals = [];
   const sectorFlow = data.sectorFundFlow || [];
-  const stockFlow = data.stockFundInflow || [];
+  const stockFlowIn = data.stockFundInflow || [];
+  const stockFlowOut = data.stockFundOutflow || [];
   const nb = data.northbound?.latest;
+  const yi = v => (v / 1e8).toFixed(1);
 
-  // 1) 板块资金净流入异常（>50亿为强信号）
+  // 1) 板块巨额流入 → 内联展示这些板块的资金明细
   const bigInflow = sectorFlow.filter(s => (s.mainNetInflow || 0) > 5e9).sort((a, b) => b.mainNetInflow - a.mainNetInflow);
   if (bigInflow.length) {
     signals.push({
       level: 'danger', type: '突发', icon: '🔥',
-      title: `${bigInflow.length}个板块主力资金巨额流入（>50亿）`,
-      desc: bigInflow.slice(0, 3).map(s => `${s.name}+${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。资金集中涌入，可能是突发利好或主线确立，思路①跟资金走。'
+      title: `${bigInflow.length}个板块主力巨额流入（>50亿）`,
+      implication: '资金集中涌入 → 可能突发利好或主线确立，思路①跟资金布局龙头',
+      evidence: bigInflow.slice(0, 6).map(s => ({ name: s.name, value: '+' + yi(s.mainNetInflow) + '亿', sub: fmtPct(s.changePct), dir: 'up' }))
     });
   }
 
-  // 2) 板块资金净流出异常（<-30亿为风险信号）
+  // 2) 板块大幅流出 → 内联展示流出板块明细
   const bigOutflow = sectorFlow.filter(s => (s.mainNetInflow || 0) < -3e9).sort((a, b) => a.mainNetInflow - b.mainNetInflow);
   if (bigOutflow.length) {
     signals.push({
       level: 'warn', type: '突发', icon: '🩸',
-      title: `${bigOutflow.length}个板块主力资金大幅流出（<-30亿）`,
-      desc: bigOutflow.slice(0, 3).map(s => `${s.name}${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。资金集中撤离，警惕突发利空或主线退潮。'
+      title: `${bigOutflow.length}个板块主力大幅流出（<-30亿）`,
+      implication: '资金集中撤离 → 警惕突发利空或主线退潮，回避相关板块',
+      evidence: bigOutflow.slice(0, 6).map(s => ({ name: s.name, value: yi(s.mainNetInflow) + '亿', sub: fmtPct(s.changePct), dir: 'down' }))
     });
   }
 
-  // 3) 板块涨幅与资金背离（跌但资金流入 = 反常信号）
+  // 3) 价跌资金进背离 → 内联展示背离板块（价格 vs 资金对照）
   const divergence = sectorFlow.filter(s =>
-    s.changePct != null && s.mainNetInflow != null &&
-    s.changePct < -1 && s.mainNetInflow > 1e9
+    s.changePct != null && s.mainNetInflow != null && s.changePct < -1 && s.mainNetInflow > 1e9
   ).sort((a, b) => b.mainNetInflow - a.mainNetInflow);
   if (divergence.length) {
     signals.push({
       level: 'info', type: '反常', icon: '🔍',
-      title: `${divergence.length}个板块"跌但资金流入"（背离信号）`,
-      desc: divergence.slice(0, 3).map(s => `${s.name}跌${fmtPct(s.changePct)}但主力+${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。价跌资金进=机构抄底，思路②反常信号。'
+      title: `${divergence.length}个板块"价跌但资金流入"（背离抄底）`,
+      implication: '价跌资金进 = 机构逆势抄底，思路②反常信号，关注后续修复',
+      evidence: divergence.slice(0, 6).map(s => ({ name: s.name, value: '+' + yi(s.mainNetInflow) + '亿', sub: '跌' + fmtPct(s.changePct), dir: 'up' }))
     });
   }
 
-  // 4) 板块涨幅与资金背离（涨但资金流出 = 出货信号）
+  // 4) 价涨资金出出货 → 内联展示出货板块
   const shipment = sectorFlow.filter(s =>
-    s.changePct != null && s.mainNetInflow != null &&
-    s.changePct > 1 && s.mainNetInflow < -1e9
+    s.changePct != null && s.mainNetInflow != null && s.changePct > 1 && s.mainNetInflow < -1e9
   ).sort((a, b) => a.mainNetInflow - b.mainNetInflow);
   if (shipment.length) {
     signals.push({
       level: 'warn', type: '反常', icon: '📤',
-      title: `${shipment.length}个板块"涨但资金流出"（出货信号）`,
-      desc: shipment.slice(0, 3).map(s => `${s.name}涨${fmtPct(s.changePct)}但主力${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。价涨资金出=机构拉高出货，警惕。'
+      title: `${shipment.length}个板块"价涨但资金流出"（拉高出货）`,
+      implication: '价涨资金出 = 机构拉高出货，警惕追高被套',
+      evidence: shipment.slice(0, 6).map(s => ({ name: s.name, value: yi(s.mainNetInflow) + '亿', sub: '涨' + fmtPct(s.changePct), dir: 'down' }))
     });
   }
 
-  // 5) 个股资金净流入异常大（>10亿单票）
-  const bigStockInflow = stockFlow.filter(s => (s.mainNetInflow || 0) > 1e10).slice(0, 5);
-  if (bigStockInflow.length) {
+  // 5) 个股巨额流入 → 内联展示这些个股（含行业）
+  const bigStockIn = stockFlowIn.filter(s => (s.mainNetInflow || 0) > 1e10).slice(0, 6);
+  if (bigStockIn.length) {
     signals.push({
       level: 'info', type: '突发', icon: '💎',
-      title: `${bigStockInflow.length}只个股主力净流入>10亿`,
-      desc: bigStockInflow.slice(0, 3).map(s => `${s.name}+${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。单票巨额流入，可能是突发利好或机构建仓。'
+      title: `${bigStockIn.length}只个股主力净流入>10亿`,
+      implication: '单票巨额流入 → 突发利好或机构建仓，思路①关注这些龙头',
+      evidence: bigStockIn.map(s => ({ name: s.name, value: '+' + yi(s.mainNetInflow) + '亿', sub: (s.industry || '') + ' ' + fmtPct(s.changePct), dir: 'up' }))
     });
   }
 
-  // 6) 北向资金异动
-  if (nb) {
-    if (nb.total > 80) {
-      signals.push({ level: 'info', type: '突发', icon: '🌍', title: `北向资金大幅净流入 ${nb.total.toFixed(1)}亿`, desc: '外资强势买入，关注其偏好板块（消费/医药/科技龙头），思路①跟随外资。' });
-    } else if (nb.total < -50) {
-      signals.push({ level: 'danger', type: '突发', icon: '🌍', title: `北向资金大幅净流出 ${Math.abs(nb.total).toFixed(1)}亿`, desc: '外资大幅撤离，警惕系统性风险，转向防御。' });
-    }
+  // 6) 个股巨额流出 → 内联展示流出个股
+  const bigStockOut = stockFlowOut.filter(s => (s.mainNetInflow || 0) < -3e9).slice(0, 6);
+  if (bigStockOut.length) {
+    signals.push({
+      level: 'warn', type: '突发', icon: '💸',
+      title: `${bigStockOut.length}只个股主力净流出>3亿`,
+      implication: '资金撤离 → 警惕个股利空或机构调仓，回避',
+      evidence: bigStockOut.map(s => ({ name: s.name, value: yi(s.mainNetInflow) + '亿', sub: (s.industry || '') + ' ' + fmtPct(s.changePct), dir: 'down' }))
+    });
   }
 
-  // 7) 涨跌停极端
-  const up = data.limitUp || { total: 0 };
-  const down = data.limitDown || { total: 0 };
-  if (up.total > 80) {
-    signals.push({ level: 'info', type: '突发', icon: '🚀', title: `涨停${up.total}家，赚钱效应极强`, desc: '涨停家数过多，市场情绪亢奋，注意高位股分歧风险。' });
-  } else if (down.total > 50) {
-    signals.push({ level: 'danger', type: '突发', icon: '💀', title: `跌停${down.total}家，亏钱效应显著`, desc: '跌停家数过多，市场恐慌，控制仓位。' });
+  // 7) 北向异动 → 内联展示北向明细
+  if (nb && (nb.total > 50 || nb.total < -30)) {
+    const dir = nb.total >= 0 ? 'up' : 'down';
+    signals.push({
+      level: nb.total >= 0 ? 'info' : 'danger', type: '突发', icon: '🌍',
+      title: `北向资金${nb.total >= 0 ? '大幅净流入' : '大幅净流出'} ${Math.abs(nb.total).toFixed(1)}亿`,
+      implication: nb.total >= 0 ? '外资强势买入 → 跟随外资偏好（消费/医药/科技龙头）' : '外资大幅撤离 → 警惕系统性风险，转向防御',
+      evidence: [
+        { name: '沪股通', value: (nb.sh >= 0 ? '+' : '') + nb.sh.toFixed(1) + '亿', sub: '', dir: nb.sh >= 0 ? 'up' : 'down' },
+        { name: '深股通', value: (nb.sz >= 0 ? '+' : '') + nb.sz.toFixed(1) + '亿', sub: '', dir: nb.sz >= 0 ? 'up' : 'down' },
+        { name: '北向合计', value: (nb.total >= 0 ? '+' : '') + nb.total.toFixed(1) + '亿', sub: '', dir }
+      ]
+    });
   }
 
+  // 8) 涨跌停极端 → 内联展示涨停个股
+  const up = data.limitUp || { total: 0, list: [] };
+  const down = data.limitDown || { total: 0, list: [] };
+  if (up.total > 60) {
+    signals.push({
+      level: 'info', type: '突发', icon: '🚀',
+      title: `涨停${up.total}家，赚钱效应极强（跌停${down.total}家）`,
+      implication: '情绪亢奋 → 跟随主线但注意高位股分歧风险',
+      evidence: (up.list || []).slice(0, 6).map(s => ({ name: s.name, value: fmtPct(s.changePct), sub: (s.industry || '') + (s.limitDays > 1 ? ' ' + s.limitDays + '连板' : ' 首板'), dir: 'up' }))
+    });
+  } else if (down.total > 30) {
+    signals.push({
+      level: 'danger', type: '突发', icon: '💀',
+      title: `跌停${down.total}家，亏钱效应显著（涨停${up.total}家）`,
+      implication: '市场恐慌 → 控制仓位，转向防御',
+      evidence: (down.list || []).slice(0, 6).map(s => ({ name: s.name, value: fmtPct(s.changePct), sub: s.industry || '', dir: 'down' }))
+    });
+  }
+
+  // 渲染：每个信号 = 标题 + 类型标签 + 内联资金明细表 + 操作含义
   list.innerHTML = signals.length ? signals.map(s => `
-    <div class="signal-item ${s.level}">
-      <span class="signal-icon">${s.icon}</span>
-      <div>
-        <div class="signal-title">${s.title} <span class="signal-type-tag">${s.type}</span></div>
-        <div class="signal-desc">${s.desc}</div>
+    <div class="signal-item ${s.level} signal-with-evidence">
+      <div class="signal-head">
+        <span class="signal-icon">${s.icon}</span>
+        <div class="signal-head-text">
+          <div class="signal-title">${s.title} <span class="signal-type-tag">${s.type}</span></div>
+          <div class="signal-implication">${s.implication}</div>
+        </div>
       </div>
+      ${s.evidence && s.evidence.length ? `
+      <div class="signal-evidence">
+        ${s.evidence.map(e => `
+          <div class="ev-row">
+            <span class="ev-name">${e.name}</span>
+            <span class="ev-sub">${e.sub || ''}</span>
+            <span class="ev-val ${e.dir}">${e.value}</span>
+          </div>
+        `).join('')}
+      </div>` : ''}
     </div>
   `).join('') : '<div class="empty-tip">暂无明显反常/突发信号</div>';
 }

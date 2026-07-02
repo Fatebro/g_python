@@ -748,6 +748,49 @@
     .future-meta { font-size: 11px; color: var(--text-dim); line-height: 1.7; }
     .future-meta strong { color: var(--text); font-weight: 600; }
 
+    /* 选中的未来板块卡片高亮（与选择器联动） */
+    .future-card.selected {
+      border-color: var(--up);
+      border-top-color: var(--up);
+      box-shadow: 0 0 0 1px var(--up), 0 4px 16px rgba(239,68,68,0.18);
+      background: rgba(239,68,68,0.05);
+    }
+    .chain-chip .chip-maturity {
+      font-style: normal;
+      font-size: 10px;
+      margin-left: 6px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .chain-chip.active .chip-maturity { color: var(--accent); }
+
+    /* 未来板块趋势摘要（选择器下方） */
+    .future-trend-summary { margin-top: 14px; }
+    .ft-summary {
+      background: var(--bg-soft);
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 16px;
+      border-left: 3px solid var(--accent);
+    }
+    .ft-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .ft-icon { font-size: 28px; }
+    .ft-title-block { flex: 1; }
+    .ft-name { font-weight: 700; font-size: 16px; }
+    .ft-stage { margin-top: 4px; }
+    .ft-horizon {
+      font-size: 11px; color: var(--accent); background: var(--accent-bg);
+      padding: 4px 10px; border-radius: 10px; font-weight: 600; white-space: nowrap;
+    }
+    .ft-maturity {
+      display: grid; grid-template-columns: 56px 1fr 42px auto;
+      align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .fm-layout { font-size: 11px; color: var(--accent); white-space: nowrap; }
+    .ft-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-bottom: 10px; }
+    .ft-catalyst, .ft-stocks { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-top: 4px; }
+    .ft-catalyst strong, .ft-stocks strong { color: var(--text); }
+
     /* ===== 北向数据卡片 ===== */
     .scroll-list {
       max-height: 360px;
@@ -1345,11 +1388,13 @@
     <!-- 产业生态构建（按未来板块切换，独立于产业链传导）-->
     <div class="tab-panel" id="panel-ecology">
       <div class="card">
-        <div class="card-title">🔮 未来板块选择（独立于产业链传导）<span class="horizon-tag">思路④ · 1年-10年</span></div>
+        <div class="card-title">🔮 未来板块选择（按成熟度从高到低 · 独立于产业链传导）<span class="horizon-tag">思路④ · 1年-10年</span></div>
         <div class="chain-selector" id="ecology-chain-tabs">
           <div class="empty-tip">加载中...</div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">提示：点击上方任一未来板块，下方链主/飞轮/投资动向/案例将独立切换。本面板不跟随「产业链传导」面板。</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">提示：按成熟度从高到低排序，点击任一未来板块，下方趋势/链主/飞轮/投资动向将独立切换，并与底部「未来板块前瞻」联动高亮。</div>
+        <!-- 当前未来板块趋势摘要（与选择器联动） -->
+        <div id="future-trend-summary" class="future-trend-summary"></div>
       </div>
       <div class="card">
         <div class="card-title">🌳 链主公司追踪（当前未来板块）<span class="horizon-tag">思路④ · 1年-10年</span></div>

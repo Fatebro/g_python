@@ -16,7 +16,14 @@ let currentData = null;
 let charts = {};
 
 // ===== 通用工具 =====
-function $(id) { return document.getElementById(id); }
+function $(id) {
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn('[WARN] 元素不存在:', id);
+    return { innerHTML: '', textContent: '', style: {}, classList: { add() {}, remove() {}, toggle() {} }, getContext() { return null; }, addEventListener() {} };
+  }
+  return el;
+}
 
 function fmtPct(n) { return API.formatPct(n); }
 function fmtAmt(n) { return API.formatAmount(n); }
@@ -124,9 +131,9 @@ function renderGlobalMarket(data) {
 
   $('global-analysis').innerHTML = lines.join('');
 
-  // 全球视野下的A股研判
+  // 全球视野下的A股研判（追加到分析中）
   const aShareLines = generateGlobalAShareView(data);
-  $('global-a-share').innerHTML = aShareLines.join('');
+  $('global-analysis').innerHTML += '<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);"></div>' + aShareLines.join('');
 }
 
 function generateGlobalAShareView(globalData) {
@@ -1058,13 +1065,10 @@ function renderShortTermSentiment(data) {
   const limitUpQuality = ztCount > 20 ? '优' : ztCount > 10 ? '良' : ztCount > 5 ? '中' : '差';
   $('limit-up-quality').textContent = limitUpQuality;
 
-  // 游资动向分析
+  // 游资动向分析 + 情绪周期定位（合并显示）
   const hotMoneyHtml = generateHotMoneyAnalysis(data);
-  $('hot-money-analysis').innerHTML = hotMoneyHtml;
-
-  // 情绪周期定位
   const cycleHtml = generateSentimentCycle(sentimentLevel, sentimentScore);
-  $('sentiment-cycle').innerHTML = cycleHtml;
+  $('sentiment-cycle').innerHTML = hotMoneyHtml + '<div style="margin-top: 16px;"></div>' + cycleHtml;
 
   // 短线操作建议
   const adviceHtml = generateShortTermAdvice(sentimentLevel, sentimentScore, data);
@@ -1275,6 +1279,7 @@ async function loadData() {
     renderEcologyFlywheel();
     renderEcologyAdvice();
     renderShortTermSentiment(data);
+    renderMarketSignals(data);
     renderFundFlow(data.sectorFundFlow);
     renderInstitutional(data.northbound);
     renderNorthboundSectorTrend(data);

@@ -403,7 +403,8 @@ function renderSupplyAdvice() {
   lines.push(`<p><strong>产业链传导思路：</strong>从下游需求爆发，向上游传导，找最窄的瓶颈环节，这就是最大的投资机会。</p>`);
   lines.push(`<p><strong>AI赛道重点：</strong>光模块、CPO、光芯片是AI算力最核心的卡脖子环节，需求确定性高，值得重点跟踪。</p>`);
   lines.push(`<p><strong>新能源赛道重点：</strong>锂矿、硅料是上游核心资源，价格企稳回升时，中下游利润空间打开，可关注。</p>`);
-  lines.push(`<p><strong>验证方法：</strong>关注龙头公司订单公告、产能扩张计划、机构持仓变化，确认逻辑成立。</p>`);
+  lines.push(`<p><strong>产业生态思路：</strong>找到能成为「链主」的公司，等待它构建出一整条产业链的飞轮效应。中际旭创带动源杰科技、联讯仪器就是典型案例。</p>`);
+  lines.push(`<p><strong>操作建议：</strong>关注链主公司（中际旭创、宁德时代、比亚迪）的投资动向，跟踪它们持股或合作的上下游企业，这些是产业生态的下一波机会。</p>`);
   
   $('supply-advice').innerHTML = lines.join('');
 }
@@ -603,17 +604,6 @@ function renderEcologyFlywheel() {
       </div>
     </div>
   `).join('');
-}
-
-function renderEcologyAdvice() {
-  const lines = [];
-  lines.push(`<p><strong>产业生态思路：</strong>找到能成为「链主」的公司，在它还不值钱的时候下注，等待它构建出一整条产业链的飞轮效应。</p>`);
-  lines.push(`<p><strong>当前链主：</strong>中际旭创（AI光模块）、宁德时代（新能源电池）、比亚迪（新能源汽车）、北方华创（半导体设备）。</p>`);
-  lines.push(`<p><strong>产业链机会：</strong>当链主公司业绩爆发时，机会不在链主本身（已经太贵），而在它的上游供应商和产业链延伸企业。</p>`);
-  lines.push(`<p><strong>苏州案例：</strong>2008年投资旭创科技3000万，18年后长成中际旭创，带动源杰科技、联讯仪器等一批公司崛起。</p>`);
-  lines.push(`<p><strong>操作建议：</strong>关注链主公司的投资动向，跟踪它们持股或合作的上下游企业，这些是产业生态的下一波机会。</p>`);
-  
-  $('ecology-advice').innerHTML = lines.join('');
 }
 
 // ===== 3. 大资金流向（板块资金）=====
@@ -1270,16 +1260,14 @@ async function loadData() {
     renderSectorAdvice(data);
     renderSupplyChain();
     renderBottleneckList();
-    renderSupplyAdvice();
     renderChainLeaders();
     renderEcologyFlywheel();
-    renderEcologyAdvice();
+    renderSupplyAdvice();
     renderShortTermSentiment(data);
     renderFundFlow(data.sectorFundFlow);
     renderInstitutional(data.northbound);
     renderNorthboundSectorTrend(data);
     renderInstAdvice(data);
-    renderTextReport(data);
 
     const now = new Date();
     $('update-time').textContent = now.toLocaleTimeString('zh-CN');

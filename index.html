@@ -1117,11 +1117,11 @@
     <!-- 产业链传导 -->
     <div class="tab-panel" id="panel-supply">
       <div class="card">
-        <div class="card-title">🔗 产业链拆解（点击切换产业链）</div>
+        <div class="card-title">🔗 产业链拆解（点击切换产业链 · 与产业生态面板联动）</div>
         <div class="chain-selector" id="supply-chain-tabs">
           <div class="empty-tip">加载中...</div>
         </div>
-        <div class="supply-chain" id="supply-chain-detail">
+        <div class="supply-chain scroll-list" id="supply-chain-detail" style="max-height:none;">
           <div class="empty-tip">加载中...</div>
         </div>
         <div class="chain-legend">
@@ -1130,8 +1130,8 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-title">🎯 卡脖子环节标记</div>
-        <div class="bottleneck-list" id="bottleneck-list">
+        <div class="card-title">🎯 卡脖子环节标记（当前产业链）</div>
+        <div class="bottleneck-list scroll-list" id="bottleneck-list">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
@@ -1146,26 +1146,33 @@
     <!-- 产业生态构建 -->
     <div class="tab-panel" id="panel-ecology">
       <div class="card">
-        <div class="card-title">🌳 链主公司追踪</div>
+        <div class="card-title">🌳 产业链选择（与产业链拆解联动）</div>
+        <div class="chain-selector" id="ecology-chain-tabs">
+          <div class="empty-tip">加载中...</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">提示：点击上方任一产业链，下方链主/飞轮/投资动向/案例将同步切换。</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🌳 链主公司追踪（当前产业链）</div>
         <div class="chain-leader-list" id="chain-leader-list">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
       <div class="card">
         <div class="card-title">🔗 产业链飞轮效应</div>
-        <div class="ecology-flywheel" id="ecology-flywheel">
+        <div class="ecology-flywheel scroll-list" id="ecology-flywheel">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
       <div class="card">
         <div class="card-title">🤝 链主投资动向（订单溢出方向）</div>
-        <div class="ecology-investment" id="ecology-investment">
+        <div class="ecology-investment scroll-list" id="ecology-investment">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
       <div class="card">
         <div class="card-title">🏘️ 产业生态案例库</div>
-        <div class="ecology-cases" id="ecology-cases">
+        <div class="ecology-cases scroll-list" id="ecology-cases" style="max-height:420px;">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>

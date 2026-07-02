@@ -282,7 +282,7 @@ function renderSectorRotation(data) {
   });
 }
 
-// ===== 2a. 板块钻取详情 =====
+// ===== 2a. 板块钻取详情（选中板块后同步切换产业链）=====
 function selectSector(sectorName) {
   currentSelectedSector = sectorName;
   // 更新选中态
@@ -290,6 +290,11 @@ function selectSector(sectorName) {
     el.classList.toggle('selected', el.dataset.sector === sectorName);
   });
   renderSectorDetail(sectorName);
+  // ★ 三面板联动：板块 → 产业链映射，自动切换产业链拆解/产业生态
+  const chainKey = sectorToChain(sectorName);
+  if (chainKey && chainKey !== currentChain) {
+    selectChain(chainKey);
+  }
   // 滚动到详情卡
   const card = $('sector-detail-card');
   if (card && card.style.display !== 'none') {
@@ -348,8 +353,9 @@ function renderSectorDetail(sectorName) {
     </div>
   `).join('') : '<div class="detail-empty">该板块暂无主力净流入个股数据</div>';
 
-  // 3) 链主公司（从 SUPPLY_CHAINS + 链主库匹配）
-  const leaders = getLeadersForSector(sectorName);
+  // 3) 链主公司（按当前产业链取，selectSector 已同步切换 currentChain）
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const leaders = detail.leaders || [];
   $('detail-leaders').innerHTML = leaders.length ? leaders.map(l => `
     <div class="detail-leader-row">
       <div>
@@ -360,8 +366,8 @@ function renderSectorDetail(sectorName) {
     </div>
   `).join('') : '<div class="detail-empty">该板块暂无链主公司追踪</div>';
 
-  // 4) 卡脖子技术节点
-  const botts = getBottlenecksForSector(sectorName);
+  // 4) 卡脖子技术节点（按当前产业链取）
+  const botts = detail.bottlenecks || [];
   $('detail-bottlenecks').innerHTML = botts.length ? botts.map(b => `
     <div class="detail-bott-row">
       <div class="db-title">🎯 ${b.title}</div>
@@ -393,37 +399,6 @@ function getRelatedSectors(sectorName) {
     '光模块': ['AI算力', 'CPO', '光芯片'],
   };
   return map[sectorName] || [];
-}
-
-// 板块 → 链主匹配
-function getLeadersForSector(sectorName) {
-  const allLeaders = [
-    { industry: 'AI光模块', name: '中际旭创', code: '300308', marketCap: '1.5万亿', revenue: '382亿', growth: '+192%', sectors: ['光模块', 'CPO', '光芯片', 'AI算力'] },
-    { industry: '新能源电池', name: '宁德时代', code: '300750', marketCap: '1.2万亿', revenue: '4000亿+', growth: '+40%', sectors: ['电池', '新能源汽车', '锂矿', '电解液'] },
-    { industry: '新能源汽车', name: '比亚迪', code: '002594', marketCap: '8000亿', revenue: '8000亿+', growth: '+50%', sectors: ['新能源汽车', '乘用车', '汽车零部件'] },
-    { industry: '半导体设备', name: '北方华创', code: '002371', marketCap: '5000亿', revenue: '300亿', growth: '+70%', sectors: ['半导体', '光刻机', '刻蚀机'] },
-    { industry: '光伏', name: '隆基绿能', code: '601012', marketCap: '3000亿', revenue: '1500亿', growth: '+30%', sectors: ['光伏', '光伏设备', '硅料'] },
-    { industry: '消费电子', name: '立讯精密', code: '002475', marketCap: '2000亿', revenue: '2000亿', growth: '+20%', sectors: ['消费电子', '面板', '组装'] }
-  ];
-  return allLeaders.filter(l =>
-    l.sectors.some(s => s === sectorName || sectorName.includes(s) || s.includes(sectorName))
-  );
-}
-
-// 板块 → 卡脖子节点匹配
-function getBottlenecksForSector(sectorName) {
-  const allBotts = [
-    { title: '光模块/CPO', desc: 'AI数据中心高速互联核心，800G/1.6T需求爆发，产能扩张周期长。', stocks: '中际旭创、新易盛、天孚通信', sectors: ['光模块', 'CPO', '光芯片', 'AI算力'] },
-    { title: '半导体材料', desc: '光刻胶、靶材、电子特气被海外垄断，国产替代空间巨大。', stocks: '南大光电、安集科技、雅克科技', sectors: ['半导体', '光刻胶', '靶材', '电子特气'] },
-    { title: '高端光刻机', desc: 'ASML垄断EUV，国产替代任重道远。', stocks: '中芯国际、北方华创、中微公司', sectors: ['半导体', '光刻机', '刻蚀机'] },
-    { title: '锂矿/硅料', desc: '上游核心资源，供给弹性小，价格波动直接传导中下游。', stocks: '赣锋锂业、天齐锂业、通威股份', sectors: ['锂矿', '硅料', '电池', '新能源汽车'] },
-    { title: '高端医疗器械', desc: 'CT/MRI/手术机器人被GE、西门子垄断，国产高端化最难。', stocks: '联影医疗、迈瑞医疗', sectors: ['医疗器械', '医药生物', '高端器械'] },
-    { title: '航空发动机', desc: '军工皇冠明珠，高温合金单晶叶片壁垒极高。', stocks: '航发动力、抚顺特钢', sectors: ['军工', '航空发动机', '高温合金', '钛合金'] },
-    { title: '高端数控机床', desc: '五轴联动被德日垄断，国产化率低。', stocks: '科德数控、华中数控', sectors: ['机床', '高端制造', '军工'] }
-  ];
-  return allBotts.filter(b =>
-    b.sectors.some(s => s === sectorName || sectorName.includes(s) || s.includes(sectorName))
-  );
 }
 
 // ===== 2b. 板块联动关系（资金共振 + 产业链传导）=====
@@ -595,10 +570,11 @@ function renderSectorAdvice(data) {
   $('sector-advice').innerHTML = lines.join('');
 }
 
-// ===== 2c. 产业链传导分析 =====
+// ===== 2c. 产业链传导分析（数据驱动 + 三面板联动）=====
 const SUPPLY_CHAINS = [
   {
     key: 'ai', name: 'AI算力', icon: '🤖',
+    sectors: ['AI算力', '光模块', 'CPO', '光芯片', 'GPU', '存储芯片', '算力', '数据中心'],
     layers: [
       { layer: '下游', nodes: ['AI应用', '大模型', '智能硬件'], bottleneck: false },
       { layer: '中游', nodes: ['GPU芯片', 'CPU芯片', '存储芯片'], bottleneck: false },
@@ -609,6 +585,7 @@ const SUPPLY_CHAINS = [
   },
   {
     key: 'newenergy', name: '新能源', icon: '⚡',
+    sectors: ['新能源', '新能源汽车', '电池', '锂电池', '光伏', '风电', '储能', '锂矿', '硅料', '电解液', '正极材料', '负极材料', '电力', '公用事业', '乘用车', '汽车零部件', '逆变器', '组件'],
     layers: [
       { layer: '下游', nodes: ['新能源汽车', '储能', '光伏电站'], bottleneck: false },
       { layer: '中游', nodes: ['电池', '组件', '逆变器'], bottleneck: false },
@@ -619,6 +596,7 @@ const SUPPLY_CHAINS = [
   },
   {
     key: 'semi', name: '半导体', icon: '🧠',
+    sectors: ['半导体', '光刻胶', '靶材', '电子特气', '光刻机', '刻蚀机', '芯片', '晶圆', '封装测试', '集成电路'],
     layers: [
       { layer: '下游', nodes: ['消费电子', '汽车电子', '工业控制'], bottleneck: false },
       { layer: '中游', nodes: ['芯片设计', '晶圆制造', '封装测试'], bottleneck: false },
@@ -629,6 +607,7 @@ const SUPPLY_CHAINS = [
   },
   {
     key: 'consumer', name: '消费电子', icon: '📱',
+    sectors: ['消费电子', '面板', '摄像头', 'FPC', '组装', '连接器', '智能手机', 'TWS', 'VR', 'AR', '果链'],
     layers: [
       { layer: '下游', nodes: ['智能手机', 'TWS耳机', 'VR/AR'], bottleneck: false },
       { layer: '中游', nodes: ['整机组装', '零部件', '结构件'], bottleneck: false },
@@ -639,6 +618,7 @@ const SUPPLY_CHAINS = [
   },
   {
     key: 'pharma', name: '医药', icon: '💊',
+    sectors: ['医药', '医药生物', '化学制药', '创新药', '仿制药', '医疗器械', '高端器械', 'CXO', '原料药', '药用包材', '培养基'],
     layers: [
       { layer: '下游', nodes: ['医院', '药店', '线上医疗'], bottleneck: false },
       { layer: '中游', nodes: ['创新药', '仿制药', '高端器械'], bottleneck: true },
@@ -649,6 +629,7 @@ const SUPPLY_CHAINS = [
   },
   {
     key: 'military', name: '军工', icon: '✈️',
+    sectors: ['军工', '国防', '航空', '航天', '高温合金', '钛合金', '碳纤维', '航空发动机', '燃气轮机', '军用芯片', '雷达'],
     layers: [
       { layer: '下游', nodes: ['航空主机厂', '航天总体', '船舶总装'], bottleneck: false },
       { layer: '中游', nodes: ['分系统', '机电零部件', '连接器'], bottleneck: false },
@@ -659,21 +640,189 @@ const SUPPLY_CHAINS = [
   }
 ];
 
-let currentSupplyChain = 'ai';
+// 全局当前产业链（三大面板共享）
+let currentChain = 'ai';
 
+// 板块名 → 产业链 key 映射
+function sectorToChain(sectorName) {
+  if (!sectorName) return null;
+  for (const chain of SUPPLY_CHAINS) {
+    if (chain.sectors.some(s => sectorName.includes(s) || s.includes(sectorName))) {
+      return chain.key;
+    }
+  }
+  return null;
+}
+
+// 统一产业链数据仓库（链主/卡脖子/投资动向/案例/飞轮标的/建议）
+const CHAIN_DETAIL = {
+  ai: {
+    leaders: [
+      { industry: 'AI光模块', name: '中际旭创', code: '300308', marketCap: '1.5万亿', revenue: '382亿', growth: '+192%', status: '链主' }
+    ],
+    bottlenecks: [
+      { title: '光模块/CPO', desc: 'AI数据中心高速互联核心，800G/1.6T需求爆发，产能扩张周期长，是AI算力链最窄环节。', stocks: '中际旭创、新易盛、天孚通信、光迅科技' },
+      { title: '光芯片', desc: '高速光芯片被海外垄断，国产替代空间大，是光模块上游最卡脖子的环节。', stocks: '源杰科技、长光华芯、光迅科技' }
+    ],
+    investments: [
+      { leader: '中际旭创', direction: '光芯片 / 光器件', targets: ['源杰科技', '光迅科技', '天孚通信'], note: '订单溢出至上游光芯片与光器件供应商，需求传导确定性高。' }
+    ],
+    cases: [
+      { region: '苏州 · 光通信生态', title: '中际旭创带动光通信集群', desc: '2008年旭创科技落地苏州，18年长成中际旭创（光模块全球龙头），带动源杰科技、联讯仪器、长光华芯等一批公司崛起，形成完整光通信产业集群。', companies: '中际旭创、源杰科技、长光华芯、联讯仪器' },
+      { region: '北京 · AI算力生态', title: '寒武纪+浪潮构建AI算力生态', desc: '以AI芯片设计（寒武纪）与服务器（浪潮）为双链主，联动数据中心、液冷、光模块企业，形成国产AI算力产业生态。', companies: '寒武纪、浪潮信息、中科曙光、光环新网' }
+    ],
+    flywheelCompanies: ['中际旭创（光模块）', '源杰科技（光芯片）', '联讯仪器（测试）', '苏州光通信集群'],
+    advice: [
+      '光模块、CPO、光芯片是AI算力链核心卡脖子环节，需求确定性高，重点跟踪。',
+      '800G/1.6T升级周期+算力基建放量，是未来2-3年最确定的产业趋势。',
+      '验证方法：关注中际旭创订单公告、海外巨头（谷歌/英伟达）资本开支。'
+    ]
+  },
+  newenergy: {
+    leaders: [
+      { industry: '新能源电池', name: '宁德时代', code: '300750', marketCap: '1.2万亿', revenue: '4000亿+', growth: '+40%', status: '链主' },
+      { industry: '新能源汽车', name: '比亚迪', code: '002594', marketCap: '8000亿', revenue: '8000亿+', growth: '+50%', status: '链主' },
+      { industry: '光伏', name: '隆基绿能', code: '601012', marketCap: '3000亿', revenue: '1500亿', growth: '+30%', status: '链主' }
+    ],
+    bottlenecks: [
+      { title: '锂矿/硅料', desc: '上游核心资源，供给弹性小，价格波动直接传导中下游利润，是新能源链关键瓶颈。', stocks: '赣锋锂业、天齐锂业、通威股份、隆基绿能' },
+      { title: '钴矿', desc: '钴资源高度依赖刚果(金)，供给集中，价格波动大，是三元电池关键瓶颈。', stocks: '华友钴业、洛阳钼业、寒锐钴业' }
+    ],
+    investments: [
+      { leader: '宁德时代', direction: '正极 / 电解液 / 电池', targets: ['容百科技', '当升科技', '亿纬锂能', '欣旺达'], note: '产能扩张带动正极材料、二线电池厂订单，二线供应商弹性更大。' },
+      { leader: '比亚迪', direction: '弗迪系 / 半导体', targets: ['弗迪电池', '比亚迪半导体', '欣旺达'], note: '自建供应链+对外供货，带动车规半导体与动力电池生态。' }
+    ],
+    cases: [
+      { region: '宁德 · 新能源生态', title: '宁德时代催生电池产业链', desc: '宁德时代以一己之力带动宁德本地新能源集群，正极、负极、电解液、隔膜、电池回收全链条企业聚集，飞轮效应显著。', companies: '宁德时代、容百科技、湖南裕能、格林美' }
+    ],
+    flywheelCompanies: ['宁德时代（电池）', '容百科技（正极）', '亿纬锂能（二线电池）', '宁德新能源集群'],
+    advice: [
+      '锂矿、硅料是上游核心资源，价格企稳回升时中下游利润空间打开。',
+      '电池链主宁德时代订单溢出至正极、电解液、二线电池厂。',
+      '验证方法：跟踪碳酸锂/硅料价格、宁德时代产能扩张公告。'
+    ]
+  },
+  semi: {
+    leaders: [
+      { industry: '半导体设备', name: '北方华创', code: '002371', marketCap: '5000亿', revenue: '300亿', growth: '+70%', status: '链主' }
+    ],
+    bottlenecks: [
+      { title: '半导体材料', desc: '光刻胶、靶材、电子特气被海外垄断，国产替代空间巨大，是半导体链卡脖子最严重环节。', stocks: '南大光电、江化微、安集科技、雅克科技' },
+      { title: '高端光刻机', desc: 'ASML垄断EUV光刻机，国产替代任重道远，是半导体链最大瓶颈。', stocks: '中芯国际、北方华创、中微公司' }
+    ],
+    investments: [
+      { leader: '北方华创', direction: '薄膜 / 刻蚀 / 清洗', targets: ['拓荆科技', '中微公司', '盛美上海'], note: '国产设备协同放量，订单向薄膜沉积、刻蚀、清洗环节扩散。' },
+      { leader: '中微公司', direction: '刻蚀 / MOCVD', targets: ['北方华创', '芯源微', '华海清科'], note: '设备链协同突破，CMP、涂胶显影等配套环节同步受益。' }
+    ],
+    cases: [
+      { region: '上海 · 半导体生态', title: '中芯国际+华虹构筑制造生态', desc: '以中芯国际、华虹为核心的晶圆制造集群，吸引设计、封测、材料、设备企业集聚，张江高科形成国内最完整的集成电路产业生态。', companies: '中芯国际、华虹半导体、中微公司、沪硅产业' }
+    ],
+    flywheelCompanies: ['北方华创（设备）', '中微公司（刻蚀）', '南大光电（光刻胶）', '张江半导体集群'],
+    advice: [
+      '材料与设备国产替代是长逻辑，政策催化+巨头认证驱动订单落地。',
+      '设备链协同突破，刻蚀、薄膜、清洗环节同步放量。',
+      '验证方法：关注中芯国际资本开支、设备国产化率数据。'
+    ]
+  },
+  consumer: {
+    leaders: [
+      { industry: '消费电子', name: '立讯精密', code: '002475', marketCap: '2000亿', revenue: '2000亿', growth: '+20%', status: '链主' }
+    ],
+    bottlenecks: [
+      { title: 'SoC/射频芯片', desc: '高端手机SoC、射频芯片被高通/联发科/苹果垄断，国产替代难度大。', stocks: '韦尔股份、卓胜微、兆易创新' }
+    ],
+    investments: [
+      { leader: '立讯精密', direction: '组装 / 连接器 / 模组', targets: ['领益智造', '蓝思科技', '舜宇光学'], note: '果链链主带动消费电子精密结构件、光学模组订单增长。' }
+    ],
+    cases: [
+      { region: '深圳 · 消费电子生态', title: '立讯+华为驱动果链生态', desc: '立讯精密从连接器起家成长为果链链主，带动精密结构件、光学、声学模块企业集聚；华为带动海思、鸿蒙生态与国产替代供应链协同爆发。', companies: '立讯精密、领益智造、蓝思科技、舜宇光学' }
+    ],
+    flywheelCompanies: ['立讯精密（组装）', '蓝思科技（玻璃）', '舜宇光学（镜头）', '深圳果链集群'],
+    advice: [
+      '果链链主立讯精密订单溢出至精密结构件、光学模组。',
+      '高端SoC/射频芯片国产替代是长期机会。',
+      '验证方法：跟踪苹果新品发布、立讯精密季报订单。'
+    ]
+  },
+  pharma: {
+    leaders: [
+      { industry: '化学制药', name: '恒瑞医药', code: '600276', marketCap: '3000亿', revenue: '200亿', growth: '+15%', status: '链主' },
+      { industry: '医疗器械', name: '迈瑞医疗', code: '300760', marketCap: '3500亿', revenue: '300亿', growth: '+20%', status: '链主' }
+    ],
+    bottlenecks: [
+      { title: '高端医疗器械', desc: 'CT/MRI/手术机器人被GE、西门子、飞利浦垄断，国产高端化是医药链最难的环节。', stocks: '联影医疗、迈瑞医疗、开立医疗、微创医疗' },
+      { title: '上游耗材', desc: '培养基、一次性生物反应器、色谱填料被海外垄断，是创新药/CXO上游卡脖子环节。', stocks: '奥浦迈、多宁生物、纳微科技' }
+    ],
+    investments: [
+      { leader: '恒瑞医药', direction: 'CXO / 原料药', targets: ['药明康德', '凯莱英', '九洲药业'], note: '创新药研发带动CXO订单，API+CXO协同放量。' },
+      { leader: '迈瑞医疗', direction: '耗材 / 试剂', targets: ['健帆生物', '万孚生物', '安图生物'], note: '器械龙头带动体外诊断耗材与试剂订单。' }
+    ],
+    cases: [
+      { region: '张江 · 创新药生态', title: '恒瑞+药明构建创新药生态', desc: '以恒瑞医药（创新药）、药明康德（CXO）为双链主，联动生物标志物、临床试验、原料药企业，形成国内最完整的创新药产业生态。', companies: '恒瑞医药、药明康德、凯莱英、九洲药业' }
+    ],
+    flywheelCompanies: ['恒瑞医药（创新药）', '药明康德（CXO）', '联影医疗（器械）', '张江创新药集群'],
+    advice: [
+      '高端器械与上游耗材（培养基、色谱填料）国产化率低，CXO订单回暖值得关注。',
+      '创新药链主恒瑞研发投入带动CXO全链条订单。',
+      '验证方法：跟踪医保谈判、创新药获批、CXO龙头订单增速。'
+    ]
+  },
+  military: {
+    leaders: [
+      { industry: '航空发动机', name: '航发动力', code: '600893', marketCap: '2000亿', revenue: '300亿', growth: '+25%', status: '链主' }
+    ],
+    bottlenecks: [
+      { title: '航空发动机', desc: '军工皇冠明珠，高温合金单晶叶片、涡轮盘制造壁垒极高，国产替代周期长。', stocks: '航发动力、航发控制、抚顺特钢、钢研高纳' },
+      { title: '高温合金', desc: '航空发动机核心材料，被海外垄断，国产化率低，是军工材料最大瓶颈。', stocks: '抚顺特钢、钢研高纳、图南股份' },
+      { title: '高端数控机床', desc: '五轴联动被德日垄断，是军工/高端制造基础瓶颈。', stocks: '科德数控、华中数控、纽威数控' }
+    ],
+    investments: [
+      { leader: '航发动力', direction: '高温合金 / 单晶叶片', targets: ['抚顺特钢', '钢研高纳', '图南股份'], note: '航发链主订单向上游高温合金、单晶叶片企业传导。' }
+    ],
+    cases: [
+      { region: '西安 · 航空航天生态', title: '航发动力+航天动力军工生态', desc: '以航发动力、航天发动机研制所为核心，集聚高温合金、单晶叶片、精密锻造企业，形成军工航空动力产业链集群。', companies: '航发动力、航发控制、抚顺特钢、钢研高纳' }
+    ],
+    flywheelCompanies: ['航发动力（发动机）', '抚顺特钢（高温合金）', '钢研高纳（单晶叶片）', '西安军工集群'],
+    advice: [
+      '高温合金、航空发动机是确定性最强的瓶颈节点，受益装备放量+国产替代双逻辑。',
+      '航发链主订单向上游材料企业传导确定性高。',
+      '验证方法：跟踪军工装备列装计划、航发动力订单公告。'
+    ]
+  }
+};
+
+// 飞轮6阶段（通用，companies 按 currentChain 动态填充）
+const FLYWHEEL_STAGES = [
+  { icon: '🌱', title: '链主崛起', desc: '链主公司业绩爆发，成为行业核心节点' },
+  { icon: '📦', title: '订单溢出', desc: '链主订单带动上下游企业产能扩张' },
+  { icon: '📈', title: '上市带动', desc: '链主上市后，上下游企业估值提升' },
+  { icon: '🏭', title: '产业集聚', desc: '更多产业链企业被吸引，形成产业集群' },
+  { icon: '💰', title: '链主基金', desc: '链主参与投资决策，孵化更多优质项目' },
+  { icon: '🔄', title: '飞轮转动', desc: '产业生态自我强化，持续创造价值' }
+];
+
+// ===== 2d. 产业链渲染 + 三面板联动切换 =====
 function renderSupplyChain() {
   const tabsEl = $('supply-chain-tabs');
   tabsEl.innerHTML = SUPPLY_CHAINS.map(c => `
-    <span class="chain-chip${c.key === currentSupplyChain ? ' active' : ''}" data-chain="${c.key}">${c.icon} ${c.name}</span>
+    <span class="chain-chip${c.key === currentChain ? ' active' : ''}" data-chain="${c.key}">${c.icon} ${c.name}</span>
   `).join('');
   tabsEl.querySelectorAll('.chain-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      currentSupplyChain = chip.dataset.chain;
-      renderSupplyChain();
-    });
+    chip.addEventListener('click', () => selectChain(chip.dataset.chain));
   });
 
-  const chain = SUPPLY_CHAINS.find(c => c.key === currentSupplyChain) || SUPPLY_CHAINS[0];
+  // 生态面板顶部选择器同步
+  const ecoTabsEl = $('ecology-chain-tabs');
+  if (ecoTabsEl) {
+    ecoTabsEl.innerHTML = SUPPLY_CHAINS.map(c => `
+      <span class="chain-chip${c.key === currentChain ? ' active' : ''}" data-chain="${c.key}">${c.icon} ${c.name}</span>
+    `).join('');
+    ecoTabsEl.querySelectorAll('.chain-chip').forEach(chip => {
+      chip.addEventListener('click', () => selectChain(chip.dataset.chain));
+    });
+  }
+
+  const chain = SUPPLY_CHAINS.find(c => c.key === currentChain) || SUPPLY_CHAINS[0];
   $('supply-chain-detail').innerHTML = chain.layers.map(layer => `
     <div class="supply-layer">
       <div class="supply-layer-label">${layer.layer}</div>
@@ -684,48 +833,28 @@ function renderSupplyChain() {
       </div>
     </div>
   `).join('');
+
+  // 联动重渲染卡脖子/链主/飞轮/投资动向/案例/建议
+  renderBottleneckList();
+  renderSupplyAdvice();
+  renderChainLeaders();
+  renderEcologyFlywheel();
+  renderEcologyInvestment();
+  renderEcologyCases();
+  renderEcologyAdvice();
+}
+
+// 统一产业链切换（板块轮动/产业链选择器/生态选择器 共用入口）
+function selectChain(chainKey) {
+  if (!chainKey || chainKey === currentChain) return;
+  currentChain = chainKey;
+  renderSupplyChain();
 }
 
 function renderBottleneckList() {
-  const bottlenecks = [
-    {
-      title: '光模块/CPO',
-      desc: 'AI数据中心最关键的高速互联组件，800G/1.6T需求爆发，产能扩张周期长，是AI算力产业链最窄环节。',
-      stocks: '中际旭创、光迅科技、新易盛、天孚通信'
-    },
-    {
-      title: '半导体材料',
-      desc: '光刻胶、靶材、电子特气等被海外垄断，国产替代空间巨大，是半导体产业链卡脖子最严重的环节。',
-      stocks: '南大光电、江化微、安集科技、雅克科技'
-    },
-    {
-      title: '高端光刻机',
-      desc: '芯片制造最核心设备，ASML垄断EUV光刻机，国产替代任重道远，是半导体产业链最大瓶颈。',
-      stocks: '中芯国际、北方华创、中微公司'
-    },
-    {
-      title: '锂矿/硅料',
-      desc: '新能源产业链上游核心资源，供给弹性小，价格波动直接影响中下游利润，是新能源产业链的关键瓶颈。',
-      stocks: '赣锋锂业、天齐锂业、通威股份、隆基绿能'
-    },
-    {
-      title: '高端医疗器械',
-      desc: 'CT、MRI、手术机器人等高端影像与治疗设备长期被GE、西门子、飞利浦垄断，国产高端化是医药产业链最难的环节。',
-      stocks: '联影医疗、迈瑞医疗、开立医疗、微创医疗'
-    },
-    {
-      title: '航空发动机',
-      desc: '军工产业链皇冠上的明珠，高温合金单晶叶片、涡轮盘制造壁垒极高，国产替代周期长，是军工最大瓶颈。',
-      stocks: '航发动力、航发控制、抚顺特钢、钢研高纳'
-    },
-    {
-      title: '高端数控机床',
-      desc: '五轴联动、高端车床等被德日企业垄断，是高端制造和军工的基础瓶颈，国产化率低、突破空间大。',
-      stocks: '科德数控、华中数控、纽威数控、海天精工'
-    }
-  ];
-  
-  $('bottleneck-list').innerHTML = bottlenecks.map(b => `
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const bottlenecks = detail.bottlenecks || [];
+  $('bottleneck-list').innerHTML = bottlenecks.length ? bottlenecks.map(b => `
     <div class="bottleneck-item">
       <span class="bottleneck-icon">🎯</span>
       <div class="bottleneck-info">
@@ -734,19 +863,15 @@ function renderBottleneckList() {
         <div class="bottleneck-stocks">相关标的：${b.stocks}</div>
       </div>
     </div>
-  `).join('');
+  `).join('') : '<div class="empty-tip">该产业链暂无卡脖子节点</div>';
 }
 
 function renderSupplyAdvice() {
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const chainName = (SUPPLY_CHAINS.find(c => c.key === currentChain) || {}).name || '';
   const lines = [];
-  lines.push(`<p><strong>产业链传导思路：</strong>从下游需求爆发，向上游传导，找最窄的瓶颈环节，这就是最大的投资机会。</p>`);
-  lines.push(`<p><strong>AI算力链：</strong>光模块、CPO、光芯片是核心卡脖子环节，需求确定性高，重点跟踪。</p>`);
-  lines.push(`<p><strong>新能源链：</strong>锂矿、硅料是上游核心资源，价格企稳回升时中下游利润空间打开。</p>`);
-  lines.push(`<p><strong>半导体链：</strong>材料与设备国产替代是长逻辑，政策催化+巨头认证驱动订单落地。</p>`);
-  lines.push(`<p><strong>医药链：</strong>高端器械与上游耗材（培养基、色谱填料）国产化率低，CXO订单回暖值得关注。</p>`);
-  lines.push(`<p><strong>军工链：</strong>高温合金、航空发动机是确定性最强的瓶颈节点，受益于装备放量与国产替代双逻辑。</p>`);
-  lines.push(`<p><strong>验证方法：</strong>关注龙头公司订单公告、产能扩张计划、机构持仓变化，确认逻辑成立。</p>`);
-  
+  lines.push(`<p><strong>当前产业链：</strong><span class="up">${chainName}</span> · 产业链传导思路——从下游需求爆发，向上游传导，找最窄的瓶颈环节。</p>`);
+  (detail.advice || []).forEach(a => lines.push(`<p>${a}</p>`));
   $('supply-advice').innerHTML = lines.join('');
 }
 
@@ -807,69 +932,15 @@ function renderInstAdvice(data) {
   $('inst-advice').innerHTML = lines.join('');
 }
 
-// ===== 2e. 产业生态构建 =====
+// ===== 2e. 产业生态构建（按 currentChain 联动）=====
 function renderChainLeaders() {
-  const leaders = [
-    {
-      industry: 'AI光模块',
-      name: '中际旭创',
-      code: '300308',
-      marketCap: '1.5万亿',
-      revenue: '382亿',
-      growth: '+192%',
-      status: '链主'
-    },
-    {
-      industry: '新能源电池',
-      name: '宁德时代',
-      code: '300750',
-      marketCap: '1.2万亿',
-      revenue: '4000亿+',
-      growth: '+40%',
-      status: '链主'
-    },
-    {
-      industry: '新能源汽车',
-      name: '比亚迪',
-      code: '002594',
-      marketCap: '8000亿',
-      revenue: '8000亿+',
-      growth: '+50%',
-      status: '链主'
-    },
-    {
-      industry: '半导体设备',
-      name: '北方华创',
-      code: '002371',
-      marketCap: '5000亿',
-      revenue: '300亿',
-      growth: '+70%',
-      status: '链主'
-    },
-    {
-      industry: '光伏',
-      name: '隆基绿能',
-      code: '601012',
-      marketCap: '3000亿',
-      revenue: '1500亿',
-      growth: '+30%',
-      status: '链主'
-    },
-    {
-      industry: '消费电子',
-      name: '立讯精密',
-      code: '002475',
-      marketCap: '2000亿',
-      revenue: '2000亿',
-      growth: '+20%',
-      status: '链主'
-    }
-  ];
-  
-  $('chain-leader-list').innerHTML = leaders.map(l => `
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const leaders = detail.leaders || [];
+  const chainName = (SUPPLY_CHAINS.find(c => c.key === currentChain) || {}).name || '';
+  $('chain-leader-list').innerHTML = leaders.length ? leaders.map(l => `
     <div class="chain-leader-card">
       <span class="leader-badge">${l.status}</span>
-      <div class="leader-industry">🔧 ${l.industry}</div>
+      <div class="leader-industry">🔧 ${l.industry} · ${chainName}</div>
       <div class="leader-name">${l.name}<span class="leader-code">${l.code}</span></div>
       <div class="leader-metrics">
         <div class="leader-metric">
@@ -886,177 +957,61 @@ function renderChainLeaders() {
         </div>
       </div>
     </div>
-  `).join('');
+  `).join('') : '<div class="empty-tip">该产业链暂无链主追踪</div>';
 }
 
 function renderEcologyFlywheel() {
-  const flywheel = [
-    {
-      icon: '🌱',
-      title: '链主崛起',
-      desc: '链主公司业绩爆发，成为行业核心节点',
-      companies: '中际旭创（AI光模块）、宁德时代（电池）',
-      active: true
-    },
-    {
-      icon: '📦',
-      title: '订单溢出',
-      desc: '链主订单带动上下游企业产能扩张',
-      companies: '源杰科技（光芯片）、亿纬锂能（电池）',
-      active: true
-    },
-    {
-      icon: '📈',
-      title: '上市带动',
-      desc: '链主上市后，上下游企业估值提升',
-      companies: '联讯仪器（测试）、欣旺达（电池）',
-      active: true
-    },
-    {
-      icon: '🏭',
-      title: '产业集聚',
-      desc: '更多产业链企业被吸引，形成产业集群',
-      companies: '苏州光通信集群、宁德新能源集群',
-      active: false
-    },
-    {
-      icon: '💰',
-      title: '链主基金',
-      desc: '链主参与投资决策，孵化更多优质项目',
-      companies: '中际旭创投资链、宁德时代投资链',
-      active: false
-    },
-    {
-      icon: '🔄',
-      title: '飞轮转动',
-      desc: '产业生态自我强化，持续创造价值',
-      companies: '整条产业链受益',
-      active: false
-    }
-  ];
-  
-  $('ecology-flywheel').innerHTML = flywheel.map((f, i) => `
-    <div class="flywheel-stage${f.active ? ' active' : ''}">
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const companies = detail.flywheelCompanies || [];
+  $('ecology-flywheel').innerHTML = FLYWHEEL_STAGES.map((f, i) => `
+    <div class="flywheel-stage${i < 3 ? ' active' : ''}">
       <span class="flywheel-icon">${f.icon}</span>
       <div class="flywheel-info">
         <div class="flywheel-title">${i + 1}. ${f.title}</div>
         <div class="flywheel-desc">${f.desc}</div>
-        <div class="flywheel-companies">相关标的：${f.companies}</div>
+        <div class="flywheel-companies">相关标的：${companies[i] || '产业链整体受益'}</div>
       </div>
     </div>
   `).join('');
 }
 
 function renderEcologyAdvice() {
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const chainName = (SUPPLY_CHAINS.find(c => c.key === currentChain) || {}).name || '';
+  const leaderNames = (detail.leaders || []).map(l => l.name + '（' + l.industry + '）').join('、') || '—';
   const lines = [];
-  lines.push(`<p><strong>产业生态思路：</strong>找到能成为「链主」的公司，在它还不值钱的时候下注，等待它构建出一整条产业链的飞轮效应。</p>`);
-  lines.push(`<p><strong>当前链主：</strong>中际旭创（AI光模块）、宁德时代（新能源电池）、比亚迪（新能源汽车）、北方华创（半导体设备）。</p>`);
-  lines.push(`<p><strong>产业链机会：</strong>当链主公司业绩爆发时，机会不在链主本身（已经太贵），而在它的上游供应商和产业链延伸企业。</p>`);
-  lines.push(`<p><strong>苏州案例：</strong>2008年投资旭创科技3000万，18年后长成中际旭创，带动源杰科技、联讯仪器等一批公司崛起。</p>`);
-  lines.push(`<p><strong>操作建议：</strong>关注链主公司的投资动向，跟踪它们持股或合作的上下游企业，这些是产业生态的下一波机会。</p>`);
-  
+  lines.push(`<p><strong>当前产业链：</strong><span class="up">${chainName}</span> · 产业生态思路——找到链主公司，在它构建的飞轮效应中捕捉上下游机会。</p>`);
+  lines.push(`<p><strong>当前链主：</strong>${leaderNames}</p>`);
+  (detail.advice || []).forEach(a => lines.push(`<p>${a}</p>`));
+  lines.push(`<p><strong>操作建议：</strong>关注链主公司投资动向，跟踪其持股或合作的上下游企业，这是产业生态的下一波机会。</p>`);
   $('ecology-advice').innerHTML = lines.join('');
 }
 
-// ===== 2f. 链主投资动向（订单溢出方向） =====
+// ===== 2f. 链主投资动向（订单溢出方向，按 currentChain 联动）=====
 function renderEcologyInvestment() {
-  const moves = [
-    {
-      leader: '中际旭创',
-      direction: '光芯片 / 光器件',
-      targets: ['源杰科技', '光迅科技', '天孚通信'],
-      note: '订单溢出至上游光芯片与光器件供应商，需求传导确定性高。'
-    },
-    {
-      leader: '宁德时代',
-      direction: '正极 / 电解液 / 电池',
-      targets: ['容百科技', '当升科技', '亿纬锂能', '欣旺达'],
-      note: '产能扩张带动正极材料、二线电池厂订单，二线供应商弹性更大。'
-    },
-    {
-      leader: '比亚迪',
-      direction: '弗迪系 / 半导体',
-      targets: ['弗迪电池', '比亚迪半导体', '欣旺达'],
-      note: '自建供应链+对外供货，带动车规半导体与动力电池生态。'
-    },
-    {
-      leader: '北方华创',
-      direction: '薄膜 / 刻蚀 / 清洗',
-      targets: ['拓荆科技', '中微公司', '盛美上海'],
-      note: '国产设备协同放量，订单向薄膜沉积、刻蚀、清洗环节扩散。'
-    },
-    {
-      leader: '立讯精密',
-      direction: '组装 / 连接器 / 模组',
-      targets: ['领益智造', '蓝思科技', '舜宇光学'],
-      note: '果链链主带动消费电子精密结构件、光学模组订单增长。'
-    },
-    {
-      leader: '中微公司',
-      direction: '刻蚀 / MOCVD',
-      targets: ['北方华创', '芯源微', '华海清科'],
-      note: '设备链协同突破，CMP、涂胶显影等配套环节同步受益。'
-    }
-  ];
-
-  $('ecology-investment').innerHTML = moves.map(m => `
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const moves = detail.investments || [];
+  $('ecology-investment').innerHTML = moves.length ? moves.map(m => `
     <div class="invest-item">
       <span class="invest-leader">${m.leader}</span>
       <span class="invest-arrow">→</span>
       <span class="invest-targets"><em>${m.direction}</em>：${m.targets.join('、')}<br><span style="font-size:11px;color:var(--text-muted);">${m.note}</span></span>
     </div>
-  `).join('');
+  `).join('') : '<div class="empty-tip">该产业链暂无投资动向</div>';
 }
 
-// ===== 2g. 产业生态案例库 =====
+// ===== 2g. 产业生态案例库（按 currentChain 联动）=====
 function renderEcologyCases() {
-  const cases = [
-    {
-      region: '苏州 · 光通信生态',
-      title: '中际旭创带动光通信集群',
-      desc: '2008年旭创科技落地苏州，18年长成中际旭创（光模块全球龙头），带动源杰科技（光芯片）、联讯仪器（测试）、长光华芯（激光器）等一批公司崛起，形成完整光通信产业集群。',
-      companies: '中际旭创、源杰科技、长光华芯、联讯仪器'
-    },
-    {
-      region: '宁德 · 新能源生态',
-      title: '宁德时代催生电池产业链',
-      desc: '宁德时代以一己之力带动宁德本地新能源集群，正极、负极、电解液、隔膜、电池回收全链条企业聚集，并孵化/参股上下游上市公司，飞轮效应显著。',
-      companies: '宁德时代、容百科技、湖南裕能、格林美'
-    },
-    {
-      region: '深圳 · 消费电子生态',
-      title: '立讯+华为驱动果链生态',
-      desc: '立讯精密从连接器起家成长为果链链主，带动精密结构件、光学、声学模块企业集聚；华为带动海思、鸿蒙生态与国产替代供应链协同爆发。',
-      companies: '立讯精密、领益智造、蓝思科技、舜宇光学'
-    },
-    {
-      region: '上海 · 半导体生态',
-      title: '中芯国际+华虹构筑制造生态',
-      desc: '以中芯国际、华虹为核心的晶圆制造集群，吸引设计、封测、材料、设备企业集聚，张江高科形成国内最完整的集成电路产业生态。',
-      companies: '中芯国际、华虹半导体、中微公司、沪硅产业'
-    },
-    {
-      region: '西安 · 航空航天生态',
-      title: '航发动力+航天动力军工生态',
-      desc: '以航发动力、航天发动机研制所为核心，集聚高温合金、单晶叶片、精密锻造企业，形成军工航空动力产业链集群。',
-      companies: '航发动力、航发控制、抚顺特钢、钢研高纳'
-    },
-    {
-      region: '北京 · AI算力生态',
-      title: '寒武纪+浪潮构建AI算力生态',
-      desc: '以AI芯片设计（寒武纪）与服务器（浪潮）为双链主，联动数据中心、液冷、光模块企业，形成国产AI算力产业生态。',
-      companies: '寒武纪、浪潮信息、中科曙光、光环新网'
-    }
-  ];
-
-  $('ecology-cases').innerHTML = cases.map(c => `
+  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  const cases = detail.cases || [];
+  $('ecology-cases').innerHTML = cases.length ? cases.map(c => `
     <div class="case-card">
       <div class="case-region">📍 ${c.region}</div>
       <div class="case-title">${c.title}</div>
       <div class="case-desc">${c.desc}</div>
       <div class="case-companies">相关标的：${c.companies}</div>
     </div>
-  `).join('');
+  `).join('') : '<div class="empty-tip">该产业链暂无生态案例</div>';
 }
 
 // ===== 3. 大资金流向（板块资金）=====

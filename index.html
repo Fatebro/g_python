@@ -581,6 +581,186 @@
     .case-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px; }
     .case-companies { font-size: 11px; color: var(--accent); }
 
+    /* ===== 通用滑动列表 ===== */
+    .scroll-list {
+      max-height: 360px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .scroll-list::-webkit-scrollbar { width: 6px; }
+    .scroll-list::-webkit-scrollbar-track { background: var(--bg-soft); border-radius: 3px; }
+    .scroll-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+    .scroll-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    .sector-rank-scroll {
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .sector-rank-scroll::-webkit-scrollbar { width: 6px; }
+    .sector-rank-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+    /* 可点击的板块排行项 */
+    .rank-item.clickable {
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .rank-item.clickable:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+    }
+    .rank-item.clickable.selected {
+      background: var(--accent-bg);
+      border-color: var(--accent);
+    }
+    .rank-item.clickable::after {
+      content: '▸';
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* ===== 板块钻取详情卡 ===== */
+    .sector-detail-card {
+      border: 2px solid var(--accent);
+      animation: slideIn 0.25s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .sector-detail-close {
+      margin-left: auto;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 14px;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .sector-detail-close:hover { background: var(--card-hover); color: var(--up); }
+    .sector-detail-body { display: flex; flex-direction: column; gap: 18px; }
+    .detail-section { }
+    .detail-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    /* 资金趋势条 */
+    .detail-fund-trend { display: flex; flex-direction: column; gap: 8px; }
+    .fund-trend-item {
+      display: grid;
+      grid-template-columns: 90px 1fr 80px;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+    .fund-trend-bar {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .fund-trend-bar-fill { height: 100%; border-radius: 4px; }
+    .fund-trend-bar-fill.up { background: linear-gradient(90deg, var(--up), #f87171); }
+    .fund-trend-bar-fill.down { background: linear-gradient(90deg, var(--down), #4ade80); }
+    .fund-trend-amount { text-align: right; font-weight: 600; }
+
+    /* 钻取龙头/链主/卡脖子列表 */
+    .detail-dragon-list,
+    .detail-leader-list,
+    .detail-bottleneck-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .detail-stock-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 70px 90px;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--bg-soft);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .ds-name { font-weight: 600; }
+    .ds-name em { font-style: normal; color: var(--text-muted); font-size: 10px; margin-left: 4px; }
+    .ds-price { text-align: right; }
+    .ds-pct { text-align: right; font-weight: 600; }
+    .ds-inflow { text-align: right; font-size: 11px; }
+    .detail-empty { color: var(--text-muted); font-size: 12px; padding: 12px; text-align: center; }
+
+    /* 钻取-链主 */
+    .detail-leader-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-soft);
+      border-radius: 6px;
+      border-left: 3px solid var(--accent);
+      font-size: 12px;
+    }
+    .dl-name { font-weight: 700; font-size: 13px; }
+    .dl-info { color: var(--text-dim); font-size: 11px; margin-top: 3px; }
+    .dl-badge {
+      background: var(--accent-bg);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      align-self: start;
+    }
+
+    /* 钻取-卡脖子 */
+    .detail-bott-row {
+      padding: 10px 12px;
+      background: rgba(245, 158, 11, 0.06);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .db-title { font-weight: 600; color: #f59e0b; margin-bottom: 4px; }
+    .db-desc { color: var(--text-dim); font-size: 11px; line-height: 1.5; }
+    .db-stocks { color: var(--accent); font-size: 11px; margin-top: 4px; }
+
+    /* ===== 板块联动关系 ===== */
+    .sector-linkage { display: flex; flex-direction: column; gap: 10px; }
+    .linkage-group {
+      background: var(--bg-soft);
+      border-radius: 8px;
+      padding: 12px 14px;
+      border-left: 3px solid var(--accent);
+    }
+    .linkage-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .linkage-chain {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+    .linkage-node {
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .linkage-node.up { background: var(--up-bg); border-color: rgba(239,68,68,0.3); color: var(--up); }
+    .linkage-node.down { background: var(--down-bg); border-color: rgba(34,197,94,0.3); color: var(--down); }
+    .linkage-arrow { color: var(--text-muted); font-size: 11px; }
+    .linkage-desc { color: var(--text-dim); font-size: 11px; margin-top: 6px; }
+
     /* ===== 北向数据卡片 ===== */
     .nb-stats {
       display: grid;
@@ -864,28 +1044,65 @@
     <!-- 板块轮动龙头 -->
     <div class="tab-panel active" id="panel-sector">
       <div class="card">
-        <div class="card-title">📊 热点板块排行 · 龙头股联动</div>
+        <div class="card-title">📊 热点板块排行 · 点击板块钻取详情</div>
         <div class="grid-2">
           <div>
             <div class="chart-container">
               <canvas id="chart-sector"></canvas>
             </div>
           </div>
-          <div>
+          <div class="sector-rank-scroll">
             <div class="card" style="background: var(--bg-soft); margin-bottom: 12px;">
-              <div class="card-title">🔥 领涨板块 TOP3</div>
-              <div class="rank-list" id="sector-top3"></div>
+              <div class="card-title">🔥 领涨板块（点击查看详情）</div>
+              <div class="rank-list" id="sector-top-list"></div>
             </div>
             <div class="card" style="background: var(--bg-soft);">
-              <div class="card-title">❄️ 领跌板块 TOP3</div>
-              <div class="rank-list" id="sector-bottom3"></div>
+              <div class="card-title">❄️ 领跌板块</div>
+              <div class="rank-list" id="sector-bottom-list"></div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- 板块钻取详情（点击板块后展开） -->
+      <div class="card sector-detail-card" id="sector-detail-card" style="display:none;">
+        <div class="card-title">
+          <span id="sector-detail-title">板块详情</span>
+          <span class="sector-detail-close" id="sector-detail-close">✕</span>
+        </div>
+        <div class="sector-detail-body">
+          <!-- 资金趋势 -->
+          <div class="detail-section">
+            <div class="detail-section-title">💰 大资金流入趋势</div>
+            <div id="detail-fund-trend" class="detail-fund-trend"></div>
+          </div>
+          <!-- 龙头股 -->
+          <div class="detail-section">
+            <div class="detail-section-title">🏆 板块龙头股</div>
+            <div id="detail-dragons" class="detail-dragon-list scroll-list"></div>
+          </div>
+          <!-- 链主公司 -->
+          <div class="detail-section">
+            <div class="detail-section-title">🌳 产业链链主</div>
+            <div id="detail-leaders" class="detail-leader-list scroll-list"></div>
+          </div>
+          <!-- 卡脖子技术 -->
+          <div class="detail-section">
+            <div class="detail-section-title">🎯 卡脖子技术节点</div>
+            <div id="detail-bottlenecks" class="detail-bottleneck-list scroll-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 板块间联动关系 -->
       <div class="card">
-        <div class="card-title">🏆 热点板块龙头股</div>
-        <div class="dragon-list" id="dragon-stocks">
+        <div class="card-title">🔗 板块联动关系（资金共振/产业链传导）</div>
+        <div id="sector-linkage" class="sector-linkage scroll-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🏆 全市场热点龙头股（可滑动）</div>
+        <div class="dragon-list scroll-list" id="dragon-stocks">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>

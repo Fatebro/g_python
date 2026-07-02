@@ -192,7 +192,9 @@ function generateGlobalAShareView(globalData) {
   return lines;
 }
 
-// ===== 2. 板块轮动分析（涨跌幅排行 + 柱状图）=====
+// ===== 2. 板块轮动分析（涨跌幅排行 + 柱状图 + 可点击钻取）=====
+let currentSelectedSector = null;
+
 function renderSectorRotation(data) {
   if (!data || !data.length) return;
 
@@ -221,6 +223,13 @@ function renderSectorRotation(data) {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (e, els) => {
+        if (els && els.length) {
+          const idx = els[0].index;
+          const name = labels[idx];
+          selectSector(name);
+        }
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -230,7 +239,7 @@ function renderSectorRotation(data) {
           borderColor: 'rgba(255,255,255,0.1)',
           borderWidth: 1,
           callbacks: {
-            label: (item) => `涨跌幅: ${fmtPct(item.raw)}`
+            label: (item) => `涨跌幅: ${fmtPct(item.raw)}（点击查看详情）`
           }
         }
       },
@@ -247,18 +256,240 @@ function renderSectorRotation(data) {
     }
   });
 
-  // 领涨领跌文字
-  const top3 = top10.slice(0, 3);
-  const bot3 = [...data].sort((a, b) => a.changePct - b.changePct).slice(0, 3);
-  $('sector-top3').innerHTML = top3.map((s, i) =>
-    `<div class="rank-item"><span class="rank-no up">${i + 1}</span><span class="rank-name">${s.name}</span><span class="rank-val up">${fmtPct(s.changePct)}</span></div>`
+  // 领涨领跌完整列表（可点击 + 可滑动）
+  const sortedAll = [...data].sort((a, b) => b.changePct - a.changePct);
+  const topList = sortedAll.slice(0, 10);
+  const botList = sortedAll.slice(-10).reverse();
+
+  $('sector-top-list').innerHTML = topList.map((s, i) =>
+    `<div class="rank-item clickable${currentSelectedSector === s.name ? ' selected' : ''}" data-sector="${s.name}">
+      <span class="rank-no up">${i + 1}</span>
+      <span class="rank-name">${s.name}</span>
+      <span class="rank-val up">${fmtPct(s.changePct)}</span>
+    </div>`
   ).join('');
-  $('sector-bottom3').innerHTML = bot3.map((s, i) =>
-    `<div class="rank-item"><span class="rank-no down">${i + 1}</span><span class="rank-name">${s.name}</span><span class="rank-val down">${fmtPct(s.changePct)}</span></div>`
+  $('sector-bottom-list').innerHTML = botList.map((s, i) =>
+    `<div class="rank-item clickable${currentSelectedSector === s.name ? ' selected' : ''}" data-sector="${s.name}">
+      <span class="rank-no down">${i + 1}</span>
+      <span class="rank-name">${s.name}</span>
+      <span class="rank-val down">${fmtPct(s.changePct)}</span>
+    </div>`
   ).join('');
+
+  // 绑定点击事件
+  document.querySelectorAll('#sector-top-list .clickable, #sector-bottom-list .clickable').forEach(el => {
+    el.addEventListener('click', () => selectSector(el.dataset.sector));
+  });
 }
 
-// ===== 2b. 热点板块龙头股 + 策略建议 =====
+// ===== 2a. 板块钻取详情 =====
+function selectSector(sectorName) {
+  currentSelectedSector = sectorName;
+  // 更新选中态
+  document.querySelectorAll('#sector-top-list .clickable, #sector-bottom-list .clickable').forEach(el => {
+    el.classList.toggle('selected', el.dataset.sector === sectorName);
+  });
+  renderSectorDetail(sectorName);
+  // 滚动到详情卡
+  const card = $('sector-detail-card');
+  if (card && card.style.display !== 'none') {
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function renderSectorDetail(sectorName) {
+  const card = $('sector-detail-card');
+  if (!card) return;
+  card.style.display = 'block';
+  $('sector-detail-title').textContent = `📊 ${sectorName} · 板块详情`;
+
+  const d = currentData;
+  if (!d) return;
+
+  // 1) 资金趋势（该板块 + 相关板块的主力净流入）
+  const fundData = d.sectorFundFlow || [];
+  const target = fundData.find(s => s.name === sectorName);
+  // 找相关板块（名称包含关系）
+  const related = fundData.filter(s =>
+    s.name !== sectorName && (
+      s.name.includes(sectorName) || sectorName.includes(s.name) ||
+      getRelatedSectors(sectorName).includes(s.name)
+    )
+  ).sort((a, b) => Math.abs(b.mainNetInflow) - Math.abs(a.mainNetInflow)).slice(0, 5);
+
+  const fundItems = [];
+  if (target) fundItems.push({ name: target.name, flow: target.mainNetInflow, isSelf: true });
+  related.forEach(r => fundItems.push({ name: r.name, flow: r.mainNetInflow, isSelf: false }));
+
+  const maxAbs = Math.max(...fundItems.map(f => Math.abs(f.flow || 0)), 1);
+  $('detail-fund-trend').innerHTML = fundItems.length ? fundItems.map(f => {
+    const pct = (Math.abs(f.flow) / maxAbs * 100).toFixed(0);
+    const isUp = (f.flow || 0) >= 0;
+    return `
+      <div class="fund-trend-item">
+        <span style="${f.isSelf ? 'color:var(--accent);font-weight:600;' : ''}">${f.isSelf ? '★ ' : ''}${f.name}</span>
+        <div class="fund-trend-bar"><div class="fund-trend-bar-fill ${isUp ? 'up' : 'down'}" style="width:${pct}%"></div></div>
+        <span class="fund-trend-amount ${isUp ? 'up' : 'down'}">${isUp ? '+' : ''}${(f.flow / 1e8).toFixed(2)}亿</span>
+      </div>
+    `;
+  }).join('') : '<div class="detail-empty">暂无资金数据</div>';
+
+  // 2) 龙头股（从个股资金流入匹配）
+  const stockData = d.stockFundInflow || [];
+  const dragons = stockData.filter(s => matchSector(s, sectorName))
+    .sort((a, b) => (b.mainNetInflow || 0) - (a.mainNetInflow || 0))
+    .slice(0, 8);
+  $('detail-dragons').innerHTML = dragons.length ? dragons.map(s => `
+    <div class="detail-stock-row">
+      <span class="ds-name">${s.name}<em>${s.code}</em></span>
+      <span class="ds-price">${s.price != null ? s.price.toFixed(2) : '--'}</span>
+      <span class="ds-pct ${s.changePct >= 0 ? 'up' : 'down'}">${fmtPct(s.changePct)}</span>
+      <span class="ds-inflow ${s.mainNetInflow >= 0 ? 'up' : 'down'}">${s.mainNetInflow >= 0 ? '+' : ''}${(s.mainNetInflow / 1e8).toFixed(2)}亿</span>
+    </div>
+  `).join('') : '<div class="detail-empty">该板块暂无主力净流入个股数据</div>';
+
+  // 3) 链主公司（从 SUPPLY_CHAINS + 链主库匹配）
+  const leaders = getLeadersForSector(sectorName);
+  $('detail-leaders').innerHTML = leaders.length ? leaders.map(l => `
+    <div class="detail-leader-row">
+      <div>
+        <div class="dl-name">${l.name} <span style="color:var(--text-muted);font-size:11px;">${l.code}</span></div>
+        <div class="dl-info">${l.industry} · 市值${l.marketCap} · 营收${l.revenue} · 增长${l.growth}</div>
+      </div>
+      <span class="dl-badge">链主</span>
+    </div>
+  `).join('') : '<div class="detail-empty">该板块暂无链主公司追踪</div>';
+
+  // 4) 卡脖子技术节点
+  const botts = getBottlenecksForSector(sectorName);
+  $('detail-bottlenecks').innerHTML = botts.length ? botts.map(b => `
+    <div class="detail-bott-row">
+      <div class="db-title">🎯 ${b.title}</div>
+      <div class="db-desc">${b.desc}</div>
+      <div class="db-stocks">相关标的：${b.stocks}</div>
+    </div>
+  `).join('') : '<div class="detail-empty">该板块暂无卡脖子节点</div>';
+}
+
+// 板块 → 相关板块映射（用于资金趋势联动展示）
+function getRelatedSectors(sectorName) {
+  const map = {
+    '黄金': ['贵金属', '有色金属', '铜'],
+    '贵金属': ['黄金', '有色金属', '铜'],
+    '有色金属': ['黄金', '贵金属', '铜', '锂矿', '钴矿'],
+    '铜': ['有色金属', '黄金', '贵金属'],
+    '电力': ['公用事业', '风电', '光伏', '储能'],
+    '公用事业': ['电力', '风电'],
+    '风电': ['电力', '公用事业', '光伏'],
+    '新能源汽车': ['电池', '汽车零部件', '锂矿', '电解液'],
+    '电池': ['新能源汽车', '锂矿', '电解液', '正极材料'],
+    '半导体': ['光刻胶', '靶材', '电子特气', '光刻机'],
+    '光刻胶': ['半导体', '靶材', '电子特气'],
+    '消费电子': ['面板', '摄像头模组', 'SoC'],
+    '医药生物': ['化学制药', '创新药', '医疗器械', 'CXO'],
+    '化学制药': ['医药生物', '创新药', '原料药'],
+    '军工': ['高温合金', '钛合金', '航空发动机'],
+    'AI算力': ['光模块', 'CPO', '光芯片', 'GPU芯片'],
+    '光模块': ['AI算力', 'CPO', '光芯片'],
+  };
+  return map[sectorName] || [];
+}
+
+// 板块 → 链主匹配
+function getLeadersForSector(sectorName) {
+  const allLeaders = [
+    { industry: 'AI光模块', name: '中际旭创', code: '300308', marketCap: '1.5万亿', revenue: '382亿', growth: '+192%', sectors: ['光模块', 'CPO', '光芯片', 'AI算力'] },
+    { industry: '新能源电池', name: '宁德时代', code: '300750', marketCap: '1.2万亿', revenue: '4000亿+', growth: '+40%', sectors: ['电池', '新能源汽车', '锂矿', '电解液'] },
+    { industry: '新能源汽车', name: '比亚迪', code: '002594', marketCap: '8000亿', revenue: '8000亿+', growth: '+50%', sectors: ['新能源汽车', '乘用车', '汽车零部件'] },
+    { industry: '半导体设备', name: '北方华创', code: '002371', marketCap: '5000亿', revenue: '300亿', growth: '+70%', sectors: ['半导体', '光刻机', '刻蚀机'] },
+    { industry: '光伏', name: '隆基绿能', code: '601012', marketCap: '3000亿', revenue: '1500亿', growth: '+30%', sectors: ['光伏', '光伏设备', '硅料'] },
+    { industry: '消费电子', name: '立讯精密', code: '002475', marketCap: '2000亿', revenue: '2000亿', growth: '+20%', sectors: ['消费电子', '面板', '组装'] }
+  ];
+  return allLeaders.filter(l =>
+    l.sectors.some(s => s === sectorName || sectorName.includes(s) || s.includes(sectorName))
+  );
+}
+
+// 板块 → 卡脖子节点匹配
+function getBottlenecksForSector(sectorName) {
+  const allBotts = [
+    { title: '光模块/CPO', desc: 'AI数据中心高速互联核心，800G/1.6T需求爆发，产能扩张周期长。', stocks: '中际旭创、新易盛、天孚通信', sectors: ['光模块', 'CPO', '光芯片', 'AI算力'] },
+    { title: '半导体材料', desc: '光刻胶、靶材、电子特气被海外垄断，国产替代空间巨大。', stocks: '南大光电、安集科技、雅克科技', sectors: ['半导体', '光刻胶', '靶材', '电子特气'] },
+    { title: '高端光刻机', desc: 'ASML垄断EUV，国产替代任重道远。', stocks: '中芯国际、北方华创、中微公司', sectors: ['半导体', '光刻机', '刻蚀机'] },
+    { title: '锂矿/硅料', desc: '上游核心资源，供给弹性小，价格波动直接传导中下游。', stocks: '赣锋锂业、天齐锂业、通威股份', sectors: ['锂矿', '硅料', '电池', '新能源汽车'] },
+    { title: '高端医疗器械', desc: 'CT/MRI/手术机器人被GE、西门子垄断，国产高端化最难。', stocks: '联影医疗、迈瑞医疗', sectors: ['医疗器械', '医药生物', '高端器械'] },
+    { title: '航空发动机', desc: '军工皇冠明珠，高温合金单晶叶片壁垒极高。', stocks: '航发动力、抚顺特钢', sectors: ['军工', '航空发动机', '高温合金', '钛合金'] },
+    { title: '高端数控机床', desc: '五轴联动被德日垄断，国产化率低。', stocks: '科德数控、华中数控', sectors: ['机床', '高端制造', '军工'] }
+  ];
+  return allBotts.filter(b =>
+    b.sectors.some(s => s === sectorName || sectorName.includes(s) || s.includes(sectorName))
+  );
+}
+
+// ===== 2b. 板块联动关系（资金共振 + 产业链传导）=====
+function renderSectorLinkage(data) {
+  const fundData = data.sectorFundFlow || [];
+  const flowMap = {};
+  fundData.forEach(s => { flowMap[s.name] = s.mainNetInflow || 0; });
+
+  // 联动组定义：核心板块 → 上下游传导链
+  const linkageGroups = [
+    {
+      title: '避险资源链', icon: '🥇',
+      chain: ['黄金', '贵金属', '有色金属', '铜'],
+      desc: '黄金创新高带动贵金属、有色、铜同步走强，资金共振避险情绪。'
+    },
+    {
+      title: '新能源资源链', icon: '🔋',
+      chain: ['锂矿', '硅料', '电池', '新能源汽车', '汽车零部件'],
+      desc: '上游资源价格企稳 → 电池成本下降 → 新能源车销量传导。'
+    },
+    {
+      title: '电力公用链', icon: '⚡',
+      chain: ['电力', '公用事业', '风电', '光伏', '储能'],
+      desc: '高股息防御 + 新能源发电装机，资金在电力相关板块轮动。'
+    },
+    {
+      title: 'AI算力链', icon: '🤖',
+      chain: ['AI算力', '光模块', 'CPO', '光芯片', 'GPU芯片', '存储芯片'],
+      desc: '下游AI应用爆发 → 中游算力 → 上游光模块/光芯片卡脖子环节传导。'
+    },
+    {
+      title: '半导体国产替代链', icon: '🧠',
+      chain: ['半导体', '光刻胶', '靶材', '电子特气', '光刻机', '刻蚀机'],
+      desc: '设备→材料→制造国产替代全链条联动，政策催化+巨头认证驱动。'
+    },
+    {
+      title: '医药防御链', icon: '💊',
+      chain: ['医药生物', '化学制药', '创新药', '医疗器械', 'CXO'],
+      desc: '防御属性+创新药催化，资金在医药子板块间轮动。'
+    },
+    {
+      title: '军工装备链', icon: '✈️',
+      chain: ['军工', '高温合金', '钛合金', '航空发动机', '碳纤维'],
+      desc: '装备放量+国产替代双逻辑，上游材料→中游分系统→下游总装传导。'
+    }
+  ];
+
+  $('sector-linkage').innerHTML = linkageGroups.map(g => {
+    const nodes = g.chain.map(name => {
+      const flow = flowMap[name];
+      const hasData = flow !== undefined;
+      const cls = !hasData ? '' : (flow >= 0 ? 'up' : 'down');
+      const tag = hasData ? ` ${flow >= 0 ? '+' : ''}${(flow / 1e8).toFixed(1)}亿` : '';
+      return `<span class="linkage-node ${cls}">${name}${tag}</span>`;
+    }).join('<span class="linkage-arrow">→</span>');
+    return `
+      <div class="linkage-group">
+        <div class="linkage-title">${g.icon} ${g.title}</div>
+        <div class="linkage-chain">${nodes}</div>
+        <div class="linkage-desc">${g.desc}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== 2c. 热点板块龙头股 + 策略建议 =====
 // 龙头筛选逻辑：
 //   1) 取板块涨幅 TOP3 作为热点方向
 //   2) 用个股 industry 字段（f100）匹配板块，命中即取该板块资金净流入最大的 2 只
@@ -1474,7 +1705,8 @@ async function loadData() {
 
     renderMarketIndex(data.marketIndex);
     renderGlobalMarket(data.globalMarket);
-    renderSectorRotation(data.sectorRank);
+    renderSectorRotation(data);
+    renderSectorLinkage(data);
     renderDragonStocks(data);
     renderSectorAdvice(data);
     renderSupplyChain();
@@ -1529,6 +1761,18 @@ function initTabs() {
       $('panel-' + target).classList.add('active');
     });
   });
+
+  // 板块钻取详情关闭按钮
+  const closeBtn = $('sector-detail-close');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      $('sector-detail-card').style.display = 'none';
+      currentSelectedSector = null;
+      document.querySelectorAll('#sector-top-list .clickable, #sector-bottom-list .clickable').forEach(el => {
+        el.classList.remove('selected');
+      });
+    });
+  }
 }
 
 // ===== 11. 导出报告 =====

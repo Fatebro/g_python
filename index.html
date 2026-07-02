@@ -787,9 +787,7 @@
       <button class="tab-btn active" data-tab="sector">📊 板块轮动龙头</button>
       <button class="tab-btn" data-tab="supply">🔗 产业链传导</button>
       <button class="tab-btn" data-tab="ecology">🌳 产业生态</button>
-      <button class="tab-btn" data-tab="fund">💰 资金流向</button>
-      <button class="tab-btn" data-tab="shortterm">⚡ 市场情绪</button>
-      <button class="tab-btn" data-tab="global">🌍 全球视野</button>
+      <button class="tab-btn" data-tab="market">📈 市场动态</button>
       <button class="tab-btn" data-tab="report">📝 分析报告</button>
     </div>
 
@@ -879,8 +877,8 @@
       </div>
     </div>
 
-    <!-- 市场情绪 -->
-    <div class="tab-panel" id="panel-shortterm">
+    <!-- 市场动态 -->
+    <div class="tab-panel" id="panel-market">
       <div class="card">
         <div class="card-title">⚡ 市场情绪分析</div>
         <div class="mood-stats">
@@ -905,6 +903,49 @@
 
       <div class="grid-2">
         <div class="card">
+          <div class="card-title">💰 行业主力资金流向</div>
+          <div class="chart-container">
+            <canvas id="chart-funds"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🏛️ 北向资金日内流向</div>
+          <div class="nb-stats" id="northbound-summary">
+            <div class="nb-stat">
+              <div class="nb-stat-label">北向合计</div>
+              <div class="nb-stat-value" id="northbound-total">--</div>
+            </div>
+            <div class="nb-stat">
+              <div class="nb-stat-label">沪股通</div>
+              <div class="nb-stat-value" id="northbound-sh">--</div>
+            </div>
+            <div class="nb-stat">
+              <div class="nb-stat-label">深股通</div>
+              <div class="nb-stat-value" id="northbound-sz">--</div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-northbound"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🐉 个股资金龙虎榜 TOP5</div>
+        <div class="fund-dual">
+          <div class="fund-col">
+            <div class="fund-col-title up">主力净流入</div>
+            <div class="rank-list" id="stock-inflow-list"></div>
+          </div>
+          <div class="fund-col">
+            <div class="fund-col-title down">主力净流出</div>
+            <div class="rank-list" id="stock-outflow-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
           <div class="card-title">🚨 特殊信号检测</div>
           <div class="signal-list" id="signal-list">
             <div class="empty-tip">加载中...</div>
@@ -919,23 +960,6 @@
       </div>
 
       <div class="card">
-        <div class="card-title">情绪周期定位</div>
-        <div id="sentiment-cycle" class="text-report">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">💡 短线操作建议</div>
-        <div id="short-term-advice" class="text-report">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 全球视野 -->
-    <div class="tab-panel" id="panel-global">
-      <div class="card">
         <div class="card-title">🌍 全球主要市场指数</div>
         <div class="market-index-grid global" id="global-market-grid">
           <div class="index-card"><div class="idx-name">道琼斯</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
@@ -946,69 +970,14 @@
           <div class="index-card"><div class="idx-name">黄金/美元</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
         </div>
       </div>
+
       <div class="card">
-        <div class="card-title">🌐 外围环境对A股影响分析</div>
-        <div id="global-analysis" class="text-report">
+        <div class="card-title">💡 操作建议</div>
+        <div id="short-term-advice" class="text-report">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
     </div>
-    <!-- 资金流向 -->
-    <div class="tab-panel" id="panel-fund">
-      <div class="card">
-        <div class="card-title">💰 行业主力资金流向</div>
-        <div class="chart-container">
-          <canvas id="chart-funds"></canvas>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">🐉 个股资金龙虎榜 TOP5</div>
-        <div class="fund-dual">
-          <div class="fund-col">
-            <div class="fund-col-title up">主力净流入</div>
-            <div class="rank-list" id="stock-inflow-list"></div>
-          </div>
-          <div class="fund-col">
-            <div class="fund-col-title down">主力净流出</div>
-            <div class="rank-list" id="stock-outflow-list"></div>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">🏛️ 北向资金日内流向</div>
-        <div class="nb-stats" id="northbound-summary">
-          <div class="nb-stat">
-            <div class="nb-stat-label">北向合计</div>
-            <div class="nb-stat-value" id="northbound-total">--</div>
-          </div>
-          <div class="nb-stat">
-            <div class="nb-stat-label">沪股通</div>
-            <div class="nb-stat-value" id="northbound-sh">--</div>
-          </div>
-          <div class="nb-stat">
-            <div class="nb-stat-label">深股通</div>
-            <div class="nb-stat-value" id="northbound-sz">--</div>
-          </div>
-        </div>
-        <div class="chart-container">
-          <canvas id="chart-northbound"></canvas>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">📈 北向资金行业配置趋势</div>
-        <div class="nb-sector" id="nb-sector-trend">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">💡 资金验证策略建议</div>
-        <div id="inst-advice" class="text-report">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-    </div>
-
-
 
     <!-- 分析报告 -->
     <div class="tab-panel" id="panel-report">

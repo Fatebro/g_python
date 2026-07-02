@@ -152,6 +152,174 @@ const FUTURE_SECTORS = [
   }
 ];
 
+// 产业生态状态：按「未来板块」切换，独立于产业链传导面板
+let currentFutureSector = '固态电池';
+
+// 未来板块产业生态数据仓库（链主/飞轮/投资动向/案例/建议）
+// 注意：未来板块多为尚未完全成形的产业，部分标的为未上市或潜在链主
+const FUTURE_DETAIL = {
+  '固态电池': {
+    leaders: [
+      { industry: '固态电池', name: '宁德时代', code: '300750', marketCap: '1.2万亿', revenue: '4000亿+', growth: '+40%', status: '潜在链主' },
+      { industry: '固态电池', name: '卫蓝新能源', code: '未上市', marketCap: '独角兽', revenue: '中试', growth: 'N/A', status: '技术领先' },
+      { industry: '固态电解质', name: '上海洗霸', code: '603200', marketCap: '80亿', revenue: '5亿', growth: '+30%', status: '材料突破' }
+    ],
+    flywheelCompanies: ['宁德时代（电池）', '卫蓝新能源（固态）', '当升科技（正极）', '上海洗霸（电解质）'],
+    investments: [
+      { leader: '宁德时代', direction: '固态电解质 / 正极', targets: ['卫蓝新能源', '当升科技', '容百科技'], note: '宁德投资固态电解质路线，全固态预计2027年小批量量产。' },
+      { leader: '丰田', direction: '硫化物电解质', targets: ['宁德时代', '赣锋锂业'], note: '丰田全固态专利全球第一，2027-2028年装车，带动国内供应链。' }
+    ],
+    cases: [
+      { region: '北京 · 固态电池生态', title: '卫蓝新能源+蔚来半固态首发', desc: '卫蓝新能源360Wh/kg半固态电池搭载蔚来ET7，国内首批半固态量产上车，带动固态电解质、锂金属负极产业链。', companies: '卫蓝新能源、蔚来、当升科技、上海洗霸' }
+    ],
+    advice: [
+      '固态电池是锂电池下一代革命，能量密度突破500Wh/kg，解决安全与续航痛点。',
+      '布局时点：2026-2028年产业化前夕，关注中试线投产与车企搭载进度。',
+      '验证方法：跟踪宁德/卫蓝/丰田中试线、车企装车公告、固态电解质量产数据。'
+    ]
+  },
+  '人形机器人': {
+    leaders: [
+      { industry: '谐波减速器', name: '绿的谐波', code: '688017', marketCap: '150亿', revenue: '5亿', growth: '+40%', status: '核心关节' },
+      { industry: '伺服/控制', name: '汇川技术', code: '300124', marketCap: '1800亿', revenue: '300亿', growth: '+30%', status: '潜在链主' },
+      { industry: '热管理', name: '三花智控', code: '002050', marketCap: '700亿', revenue: '250亿', growth: '+20%', status: '配套' }
+    ],
+    flywheelCompanies: ['特斯拉Optimus', '绿的谐波（减速器）', '汇川技术（伺服）', '三花智控（热管理）'],
+    investments: [
+      { leader: '特斯拉', direction: '关节 / 传感器 / 丝杠', targets: ['绿的谐波', '三花智控', '双环传动', '鸣志电器'], note: 'Optimus量产带动谐波减速器、行星滚柱丝杠、空心杯电机订单爆发。' },
+      { leader: '国内整机(宇树/智元)', direction: '国产供应链', targets: ['汇川技术', '绿的谐波', '中大力德'], note: '国产人形机器人订单放量，带动国产关节模组替代。' }
+    ],
+    cases: [
+      { region: '苏州/深圳 · 机器人生态', title: '绿的谐波+汇川构筑关节模组生态', desc: '以绿的谐波（减速器）、汇川（伺服）为核心的关节模组供应链，联动电机、传感器、丝杠企业，形成国产人形机器人硬件底座。', companies: '绿的谐波、汇川技术、三花智控、双环传动' }
+    ],
+    advice: [
+      '人形机器人从实验室走向工厂，AI大模型赋能+硬件成本下降是关键。',
+      '布局时点：2026年量产元年，关注特斯拉Optimus量产进度与国内整机订单。',
+      '验证方法：跟踪Optimus产量、宇树/智元融资与订单、关节模组国产化率。'
+    ]
+  },
+  '低空经济': {
+    leaders: [
+      { industry: 'eVTOL整机', name: '亿航智能', code: 'EH(美股)', marketCap: '15亿美元', revenue: '千万级', growth: '+100%', status: '链主' },
+      { industry: '通航运营', name: '中信海直', code: '000099', marketCap: '120亿', revenue: '20亿', growth: '+15%', status: '运营龙头' },
+      { industry: '无人机整机', name: '纵横股份', code: '688070', marketCap: '50亿', revenue: '5亿', growth: '+25%', status: '无人机' }
+    ],
+    flywheelCompanies: ['亿航智能（eVTOL）', '中信海直（运营）', '光威复材（碳纤维）', '卧龙电驱（电机）'],
+    investments: [
+      { leader: '亿航智能', direction: '机身 / 动力 / 航电', targets: ['光威复材', '卧龙电驱', '纵横股份'], note: 'eVTOL量产带动碳纤维机身、电驱系统、航电设备订单。' },
+      { leader: '地方政府', direction: '基建 / 空域', targets: ['中信海直', '莱斯信息'], note: '各地示范区采购+空管基建，催生运营与空管系统需求。' }
+    ],
+    cases: [
+      { region: '合肥/深圳 · 低空生态', title: '亿航+政府示范区驱动低空集群', desc: '亿航EH216-S获全球首张适航证，合肥/深圳/广州示范区密集落地，带动碳纤维、电机、空管、运营全链条。', companies: '亿航智能、中信海直、纵横股份、光威复材' }
+    ],
+    advice: [
+      '低空经济是万亿级新赛道，eVTOL+无人机+通用航空，政策催化密集。',
+      '布局时点：政策落地密集期（2025-2028），关注适航认证与采购订单。',
+      '验证方法：跟踪eVTOL适航认证、空域开放政策、政府采购订单。'
+    ]
+  },
+  '商业航天': {
+    leaders: [
+      { industry: '火箭制造', name: '航天电器', code: '002025', marketCap: '300亿', revenue: '60亿', growth: '+20%', status: '配套龙头' },
+      { industry: '卫星互联网', name: '中国卫通', code: '601698', marketCap: '400亿', revenue: '30亿', growth: '+10%', status: '运营' },
+      { industry: '星载TR', name: '铖昌科技', code: '001270', marketCap: '80亿', revenue: '3亿', growth: '+30%', status: '芯片' }
+    ],
+    flywheelCompanies: ['蓝箭/双曲线（火箭）', '航天电器（连接器）', '铖昌科技（TR芯片）', '中国卫通（运营）'],
+    investments: [
+      { leader: '民营火箭(蓝箭/双曲线)', direction: '发动机 / 复材 / 电子', targets: ['航天电器', '斯瑞新材', '铖昌科技'], note: '可回收火箭验证带动发动机、高温合金、星载电子订单。' },
+      { leader: '星网集团', direction: '卫星制造 / 运营', targets: ['中国卫通', '中科星图', '铖昌科技'], note: '星网组网发射催生卫星制造、地面站、运营服务需求。' }
+    ],
+    cases: [
+      { region: '北京/西安 · 商业航天生态', title: '星网+蓝箭构筑商业航天链', desc: '以星网集团（卫星互联网）、蓝箭/双曲线（可回收火箭）为双链主，联动航天电器、铖昌科技、斯瑞新材，形成商业航天全链条。', companies: '航天电器、铖昌科技、中国卫通、斯瑞新材' }
+    ],
+    advice: [
+      '商业航天对标SpaceX，可回收火箭+卫星互联网是核心。',
+      '布局时点：可回收火箭验证成功后（2025-2027），星网组网发射期。',
+      '验证方法：跟踪朱雀/双曲线可回收试验、星网发射节奏、卫星招标。'
+    ]
+  },
+  '可控核聚变': {
+    leaders: [
+      { industry: '高温超导', name: '西部超导', code: '688122', marketCap: '300亿', revenue: '40亿', growth: '+25%', status: '磁体材料' },
+      { industry: '超导带材', name: '永鼎股份', code: '600105', marketCap: '60亿', revenue: '30亿', growth: '+15%', status: '带材' },
+      { industry: '聚变装置', name: '国光电气', code: '688776', marketCap: '60亿', revenue: '10亿', growth: '+20%', status: '配套' }
+    ],
+    flywheelCompanies: ['BEST/CFETR（装置）', '西部超导（超导磁体）', '永鼎股份（带材）', '安泰科技（偏滤器）'],
+    investments: [
+      { leader: '中科院等离子体所', direction: '超导 / 偏滤器 / 电源', targets: ['西部超导', '安泰科技', '国光电气'], note: 'BEST/CFETR建设带动高温超导磁体、偏滤器、特种电源订单。' },
+      { leader: '私人聚变(能量奇点等)', direction: '高温超导带材', targets: ['永鼎股份', '西部超导'], note: '私人聚变公司采用高温超导路线，催生REBCO带材需求。' }
+    ],
+    cases: [
+      { region: '合肥 · 聚变生态', title: '科学岛+能量奇点驱动聚变链', desc: '以中科院等离子体所（EAST/BEST）、能量奇点（私人聚变）为核心，联动西部超导、永鼎股份、安泰科技，形成聚变装置材料与部件产业链。', companies: '西部超导、永鼎股份、国光电气、安泰科技' }
+    ],
+    advice: [
+      '可控核聚变是终极能源，AI助力等离子体约束突破，BEST/CFETR推进。',
+      '布局时点：超长期观察（2030-2040），关注AI+聚变突破与实验堆放电。',
+      '验证方法：跟踪BEST建成放电、Q值突破、私人聚变融资与里程碑。'
+    ]
+  },
+  '脑机接口': {
+    leaders: [
+      { industry: '侵入式电极', name: '脑虎科技', code: '未上市', marketCap: '独角兽', revenue: '研发', growth: 'N/A', status: '技术领先' },
+      { industry: '神外医疗', name: '三博脑科', code: '301293', marketCap: '50亿', revenue: '15亿', growth: '+15%', status: '临床' },
+      { industry: '脑膜修复', name: '迈普医学', code: '301033', marketCap: '40亿', revenue: '3亿', growth: '+20%', status: '耗材' }
+    ],
+    flywheelCompanies: ['Neuralink', '脑虎科技（电极）', '三博脑科（临床）', '迈普医学（耗材）'],
+    investments: [
+      { leader: 'Neuralink', direction: '芯片 / 电极 / 手术机器人', targets: ['脑虎科技', '迈普医学'], note: 'Neuralink大规模人体试验带动国内侵入式电极与手术机器人产业链。' },
+      { leader: '国内梯队(脑虎/微灵医疗)', direction: '临床 / 神外耗材', targets: ['三博脑科', '迈普医学', '创新医疗'], note: '国内临床获批推进，催生神外临床与耗材需求。' }
+    ],
+    cases: [
+      { region: '上海/北京 · 脑机生态', title: '脑虎+三博脑科构建脑机临床链', desc: '以脑虎科技（柔性电极）、三博脑科（神外临床）为核心，联动神经调控、脑机芯片、神外耗材企业，形成脑机接口临床应用生态。', companies: '脑虎科技、三博脑科、迈普医学、创新医疗' }
+    ],
+    advice: [
+      '脑机接口医疗应用先行，消费级远期，Neuralink+国内梯队临床推进。',
+      '布局时点：临床获批催化（2026-2030），关注国内临床进度。',
+      '验证方法：跟踪Neuralink人体试验规模、国内临床获批、电极技术指标。'
+    ]
+  },
+  '量子计算': {
+    leaders: [
+      { industry: '量子通信', name: '国盾量子', code: '688027', marketCap: '80亿', revenue: '4亿', growth: '+30%', status: '链主' },
+      { industry: '量子计算(超导)', name: '本源量子', code: '未上市', marketCap: '独角兽', revenue: '研发', growth: 'N/A', status: '技术领先' },
+      { industry: '量子软件', name: '科大国创', code: '300520', marketCap: '50亿', revenue: '20亿', growth: '+10%', status: '软件' }
+    ],
+    flywheelCompanies: ['本源量子（超导）', '国盾量子（通信）', '科大国创（软件）', '光迅科技（光器件）'],
+    investments: [
+      { leader: '本源量子', direction: '低温 / 测控 / 芯片', targets: ['国盾量子', '光迅科技', '科大国创'], note: '超导量子计算机量产带动低温制冷、测控系统、量子芯片需求。' },
+      { leader: '中科大系', direction: '量子通信网络', targets: ['国盾量子', '光迅科技'], note: '量子通信干线与卫星网络建设，催生量子密钥分发设备。' }
+    ],
+    cases: [
+      { region: '合肥 · 量子生态', title: '中科大系+本源/国盾构建量子链', desc: '以中科大系技术孵化为核心，本源量子（超导计算）、国盾量子（量子通信）为双链主，联动低温、测控、软件企业，形成量子科技全链条。', companies: '国盾量子、本源量子、科大国创、光迅科技' }
+    ],
+    advice: [
+      '量子计算处于NISQ→纠错过渡期，AI+量子混合计算是近期方向。',
+      '布局时点：超长期观察（2028-2035），关注纠错里程碑。',
+      '验证方法：跟踪IBM/谷歌比特数、国内祖冲之升级、纠错Q值突破。'
+    ]
+  },
+  '6G通信': {
+    leaders: [
+      { industry: '通信主设备', name: '中兴通讯', code: '000063', marketCap: '1500亿', revenue: '1200亿', growth: '+10%', status: '链主' },
+      { industry: '基站/射频', name: '信科移动', code: '688387', marketCap: '300亿', revenue: '80亿', growth: '+15%', status: '设备' },
+      { industry: '通信器件', name: '光迅科技', code: '002281', marketCap: '150亿', revenue: '60亿', growth: '+20%', status: '光器件' }
+    ],
+    flywheelCompanies: ['中兴通讯（主设备）', '信科移动（基站）', '烽火通信（传输）', '光迅科技（光器件）'],
+    investments: [
+      { leader: '中兴通讯', direction: '射频 / 基带 / 光器件', targets: ['信科移动', '光迅科技', '盛路通信'], note: '6G原型机研发带动太赫兹射频、基带芯片、光器件需求。' },
+      { leader: '运营商', direction: '传输 / 卫星互联', targets: ['烽火通信', '中国卫通'], note: '星地融合组网催生传输设备与卫星互联网需求。' }
+    ],
+    cases: [
+      { region: '武汉/深圳 · 6G生态', title: '信科+中兴构筑6G设备链', desc: '以信科移动（基站/射频）、中兴通讯（主设备）为核心，联动烽火通信（传输）、光迅科技（光器件），形成6G通信设备产业链。', companies: '中兴通讯、信科移动、烽火通信、光迅科技' }
+    ],
+    advice: [
+      '6G通信处于标准制定期，太赫兹+星地融合+通感一体是核心。',
+      '布局时点：标准冻结后（2030前后），关注标准推进与太赫兹突破。',
+      '验证方法：跟踪ITU/3GPP标准、太赫兹芯片突破、星地互联验证。'
+    ]
+  }
+};
+
 // ===== 通用工具 =====
 function $(id) {
   const el = document.getElementById(id);
@@ -948,17 +1116,6 @@ function renderSupplyChain() {
     chip.addEventListener('click', () => selectChain(chip.dataset.chain));
   });
 
-  // 生态面板顶部选择器同步
-  const ecoTabsEl = $('ecology-chain-tabs');
-  if (ecoTabsEl) {
-    ecoTabsEl.innerHTML = SUPPLY_CHAINS.map(c => `
-      <span class="chain-chip${c.key === currentChain ? ' active' : ''}" data-chain="${c.key}">${c.icon} ${c.name}</span>
-    `).join('');
-    ecoTabsEl.querySelectorAll('.chain-chip').forEach(chip => {
-      chip.addEventListener('click', () => selectChain(chip.dataset.chain));
-    });
-  }
-
   const chain = SUPPLY_CHAINS.find(c => c.key === currentChain) || SUPPLY_CHAINS[0];
   $('supply-chain-detail').innerHTML = chain.layers.map(layer => `
     <div class="supply-layer">
@@ -971,17 +1128,12 @@ function renderSupplyChain() {
     </div>
   `).join('');
 
-  // 联动重渲染卡脖子/链主/飞轮/投资动向/案例/建议
+  // 仅联动产业链面板的卡脖子/建议，不再联动产业生态（生态独立按未来板块）
   renderBottleneckList();
   renderSupplyAdvice();
-  renderChainLeaders();
-  renderEcologyFlywheel();
-  renderEcologyInvestment();
-  renderEcologyCases();
-  renderEcologyAdvice();
 }
 
-// 统一产业链切换（板块轮动/产业链选择器/生态选择器 共用入口）
+// 统一产业链切换（仅产业链面板内部联动，不影响产业生态）
 function selectChain(chainKey) {
   if (!chainKey || chainKey === currentChain) return;
   currentChain = chainKey;
@@ -1069,15 +1221,36 @@ function renderInstAdvice(data) {
   $('inst-advice').innerHTML = lines.join('');
 }
 
-// ===== 2e. 产业生态构建（按 currentChain 联动）=====
-function renderChainLeaders() {
-  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+// ===== 2e. 产业生态构建（按「未来板块」切换，独立于产业链传导）=====
+function renderFutureSectorSelector() {
+  const tabsEl = $('ecology-chain-tabs');
+  if (!tabsEl) return;
+  tabsEl.innerHTML = FUTURE_SECTORS.map(f => `
+    <span class="chain-chip${f.name === currentFutureSector ? ' active' : ''}" data-future="${f.name}">${f.icon} ${f.name}</span>
+  `).join('');
+  tabsEl.querySelectorAll('.chain-chip').forEach(chip => {
+    chip.addEventListener('click', () => selectFutureSector(chip.dataset.future));
+  });
+}
+
+function selectFutureSector(name) {
+  if (!name || name === currentFutureSector) return;
+  currentFutureSector = name;
+  renderEcologyAll();
+}
+
+// 统一渲染产业生态（链主/飞轮/投资动向/案例/建议 + 选择器）
+function renderEcologyAll() {
+  renderFutureSectorSelector();
+  const detail = FUTURE_DETAIL[currentFutureSector] || FUTURE_DETAIL['固态电池'];
+  const meta = FUTURE_SECTORS.find(f => f.name === currentFutureSector) || FUTURE_SECTORS[0];
+
+  // 链主
   const leaders = detail.leaders || [];
-  const chainName = (SUPPLY_CHAINS.find(c => c.key === currentChain) || {}).name || '';
   $('chain-leader-list').innerHTML = leaders.length ? leaders.map(l => `
     <div class="chain-leader-card">
       <span class="leader-badge">${l.status}</span>
-      <div class="leader-industry">🔧 ${l.industry} · ${chainName}</div>
+      <div class="leader-industry">🔧 ${l.industry} · ${currentFutureSector}</div>
       <div class="leader-name">${l.name}<span class="leader-code">${l.code}</span></div>
       <div class="leader-metrics">
         <div class="leader-metric">
@@ -1094,11 +1267,9 @@ function renderChainLeaders() {
         </div>
       </div>
     </div>
-  `).join('') : '<div class="empty-tip">该产业链暂无链主追踪</div>';
-}
+  `).join('') : '<div class="empty-tip">该未来板块暂无链主追踪</div>';
 
-function renderEcologyFlywheel() {
-  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  // 飞轮
   const companies = detail.flywheelCompanies || [];
   $('ecology-flywheel').innerHTML = FLYWHEEL_STAGES.map((f, i) => `
     <div class="flywheel-stage${i < 3 ? ' active' : ''}">
@@ -1110,23 +1281,8 @@ function renderEcologyFlywheel() {
       </div>
     </div>
   `).join('');
-}
 
-function renderEcologyAdvice() {
-  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
-  const chainName = (SUPPLY_CHAINS.find(c => c.key === currentChain) || {}).name || '';
-  const leaderNames = (detail.leaders || []).map(l => l.name + '（' + l.industry + '）').join('、') || '—';
-  const lines = [];
-  lines.push(`<p><strong>当前产业链：</strong><span class="up">${chainName}</span> · 产业生态思路——找到链主公司，在它构建的飞轮效应中捕捉上下游机会。</p>`);
-  lines.push(`<p><strong>当前链主：</strong>${leaderNames}</p>`);
-  (detail.advice || []).forEach(a => lines.push(`<p>${a}</p>`));
-  lines.push(`<p><strong>操作建议：</strong>关注链主公司投资动向，跟踪其持股或合作的上下游企业，这是产业生态的下一波机会。</p>`);
-  $('ecology-advice').innerHTML = lines.join('');
-}
-
-// ===== 2f. 链主投资动向（订单溢出方向，按 currentChain 联动）=====
-function renderEcologyInvestment() {
-  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  // 投资动向
   const moves = detail.investments || [];
   $('ecology-investment').innerHTML = moves.length ? moves.map(m => `
     <div class="invest-item">
@@ -1134,12 +1290,9 @@ function renderEcologyInvestment() {
       <span class="invest-arrow">→</span>
       <span class="invest-targets"><em>${m.direction}</em>：${m.targets.join('、')}<br><span style="font-size:11px;color:var(--text-muted);">${m.note}</span></span>
     </div>
-  `).join('') : '<div class="empty-tip">该产业链暂无投资动向</div>';
-}
+  `).join('') : '<div class="empty-tip">该未来板块暂无投资动向</div>';
 
-// ===== 2g. 产业生态案例库（按 currentChain 联动）=====
-function renderEcologyCases() {
-  const detail = CHAIN_DETAIL[currentChain] || CHAIN_DETAIL.ai;
+  // 案例
   const cases = detail.cases || [];
   $('ecology-cases').innerHTML = cases.length ? cases.map(c => `
     <div class="case-card">
@@ -1148,7 +1301,14 @@ function renderEcologyCases() {
       <div class="case-desc">${c.desc}</div>
       <div class="case-companies">相关标的：${c.companies}</div>
     </div>
-  `).join('') : '<div class="empty-tip">该产业链暂无生态案例</div>';
+  `).join('') : '<div class="empty-tip">该未来板块暂无生态案例</div>';
+
+  // 建议
+  const lines = [];
+  lines.push(`<p><strong>当前未来板块：</strong><span class="up">${currentFutureSector}</span>（${meta.stage} · 成熟度${meta.maturity}% · 周期${meta.horizon}）</p>`);
+  lines.push(`<p><strong>产业逻辑：</strong>${meta.desc}</p>`);
+  (detail.advice || []).forEach(a => lines.push(`<p>${a}</p>`));
+  $('ecology-advice').innerHTML = lines.join('');
 }
 
 // ===== 2h. 未来板块前瞻（思路④长远布局，不是看今天的链）=====
@@ -1406,43 +1566,31 @@ function renderInstitutional(data) {
   $('northbound-sz').innerHTML = `<span class="${latest.sz >= 0 ? 'up' : 'down'}">${latest.sz.toFixed(2)}亿</span>`;
 }
 
-// ===== 5. 市场特殊信号（涨跌停、情绪）=====
+// ===== 5. 市场特殊信号（涨跌停、情绪、反常信号）=====
 function renderMarketSignals(data) {
   const up = data.limitUp || { total: 0, list: [] };
   const down = data.limitDown || { total: 0, list: [] };
 
-  $('zt-count').textContent = up.total;
-  $('dt-count').textContent = down.total;
-  $('zt-dt-ratio').textContent = down.total > 0 ? (up.total / down.total).toFixed(2) : '∞';
-
-  // 情绪判断
-  const totalStocks = 5000;
-  const ztRatio = up.total / totalStocks * 100;
-  let mood = '';
-  let moodClass = '';
-  if (ztRatio > 3) { mood = '极度亢奋'; moodClass = 'up'; }
-  else if (ztRatio > 2) { mood = '偏强'; moodClass = 'up'; }
-  else if (ztRatio > 1) { mood = '中性'; moodClass = 'neutral'; }
-  else if (ztRatio > 0.5) { mood = '偏弱'; moodClass = 'down'; }
-  else { mood = '冰点'; moodClass = 'down'; }
-
-  $('market-mood').textContent = mood;
-  $('market-mood').className = 'mood-badge ' + moodClass;
+  // 涨跌停统计（元素缺失时安全兜底）
+  const ztCountEl = document.getElementById('zt-count');
+  if (ztCountEl) ztCountEl.textContent = up.total;
+  const dtCountEl = document.getElementById('dt-count');
+  if (dtCountEl) dtCountEl.textContent = down.total;
 
   // 涨停板列表 TOP 10
   const topList = (up.list || []).slice(0, 10);
-  $('zt-list').innerHTML = topList.map(s =>
+  $('zt-list').innerHTML = topList.length ? topList.map(s =>
     `<div class="zt-item">
       <span class="zt-name">${s.name}<em>${s.code}</em></span>
       <span class="zt-pct up">${fmtPct(s.changePct)}</span>
       <span class="zt-hy">${s.industry || '--'}</span>
       <span class="zt-days">${s.limitDays > 1 ? s.limitDays + '连板' : '首板'}</span>
     </div>`
-  ).join('');
+  ).join('') : '<div class="empty-tip">暂无涨停数据</div>';
 
-  // 特殊信号检测
+  // 特殊信号检测（涨跌停比、北向异动等）
   const signals = detectSpecialSignals();
-  $('signal-list').innerHTML = signals.map(s =>
+  $('signal-list').innerHTML = signals.length ? signals.map(s =>
     `<div class="signal-item ${s.level}">
       <span class="signal-icon">${s.level === 'danger' ? '⚠' : s.level === 'warn' ? '⚡' : '💡'}</span>
       <div>
@@ -1450,7 +1598,105 @@ function renderMarketSignals(data) {
         <div class="signal-desc">${s.desc}</div>
       </div>
     </div>`
-  ).join('');
+  ).join('') : '<div class="empty-tip">暂无明显特殊信号</div>';
+
+  // ★ 反常信号 + 突发信号（与资金流入同步）
+  renderAbnormalSignals(data);
+}
+
+// ===== 5b. 反常信号检测（基于资金流入，思路②身边反常信号的数据化版本）=====
+function renderAbnormalSignals(data) {
+  const list = $('abnormal-signal-list');
+  if (!list) return;
+
+  const signals = [];
+  const sectorFlow = data.sectorFundFlow || [];
+  const stockFlow = data.stockFundInflow || [];
+  const nb = data.northbound?.latest;
+
+  // 1) 板块资金净流入异常（>50亿为强信号）
+  const bigInflow = sectorFlow.filter(s => (s.mainNetInflow || 0) > 5e9).sort((a, b) => b.mainNetInflow - a.mainNetInflow);
+  if (bigInflow.length) {
+    signals.push({
+      level: 'danger', type: '突发', icon: '🔥',
+      title: `${bigInflow.length}个板块主力资金巨额流入（>50亿）`,
+      desc: bigInflow.slice(0, 3).map(s => `${s.name}+${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。资金集中涌入，可能是突发利好或主线确立，思路①跟资金走。'
+    });
+  }
+
+  // 2) 板块资金净流出异常（<-30亿为风险信号）
+  const bigOutflow = sectorFlow.filter(s => (s.mainNetInflow || 0) < -3e9).sort((a, b) => a.mainNetInflow - b.mainNetInflow);
+  if (bigOutflow.length) {
+    signals.push({
+      level: 'warn', type: '突发', icon: '🩸',
+      title: `${bigOutflow.length}个板块主力资金大幅流出（<-30亿）`,
+      desc: bigOutflow.slice(0, 3).map(s => `${s.name}${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。资金集中撤离，警惕突发利空或主线退潮。'
+    });
+  }
+
+  // 3) 板块涨幅与资金背离（跌但资金流入 = 反常信号）
+  const divergence = sectorFlow.filter(s =>
+    s.changePct != null && s.mainNetInflow != null &&
+    s.changePct < -1 && s.mainNetInflow > 1e9
+  ).sort((a, b) => b.mainNetInflow - a.mainNetInflow);
+  if (divergence.length) {
+    signals.push({
+      level: 'info', type: '反常', icon: '🔍',
+      title: `${divergence.length}个板块"跌但资金流入"（背离信号）`,
+      desc: divergence.slice(0, 3).map(s => `${s.name}跌${fmtPct(s.changePct)}但主力+${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。价跌资金进=机构抄底，思路②反常信号。'
+    });
+  }
+
+  // 4) 板块涨幅与资金背离（涨但资金流出 = 出货信号）
+  const shipment = sectorFlow.filter(s =>
+    s.changePct != null && s.mainNetInflow != null &&
+    s.changePct > 1 && s.mainNetInflow < -1e9
+  ).sort((a, b) => a.mainNetInflow - b.mainNetInflow);
+  if (shipment.length) {
+    signals.push({
+      level: 'warn', type: '反常', icon: '📤',
+      title: `${shipment.length}个板块"涨但资金流出"（出货信号）`,
+      desc: shipment.slice(0, 3).map(s => `${s.name}涨${fmtPct(s.changePct)}但主力${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。价涨资金出=机构拉高出货，警惕。'
+    });
+  }
+
+  // 5) 个股资金净流入异常大（>10亿单票）
+  const bigStockInflow = stockFlow.filter(s => (s.mainNetInflow || 0) > 1e10).slice(0, 5);
+  if (bigStockInflow.length) {
+    signals.push({
+      level: 'info', type: '突发', icon: '💎',
+      title: `${bigStockInflow.length}只个股主力净流入>10亿`,
+      desc: bigStockInflow.slice(0, 3).map(s => `${s.name}+${(s.mainNetInflow / 1e8).toFixed(1)}亿`).join('、') + '。单票巨额流入，可能是突发利好或机构建仓。'
+    });
+  }
+
+  // 6) 北向资金异动
+  if (nb) {
+    if (nb.total > 80) {
+      signals.push({ level: 'info', type: '突发', icon: '🌍', title: `北向资金大幅净流入 ${nb.total.toFixed(1)}亿`, desc: '外资强势买入，关注其偏好板块（消费/医药/科技龙头），思路①跟随外资。' });
+    } else if (nb.total < -50) {
+      signals.push({ level: 'danger', type: '突发', icon: '🌍', title: `北向资金大幅净流出 ${Math.abs(nb.total).toFixed(1)}亿`, desc: '外资大幅撤离，警惕系统性风险，转向防御。' });
+    }
+  }
+
+  // 7) 涨跌停极端
+  const up = data.limitUp || { total: 0 };
+  const down = data.limitDown || { total: 0 };
+  if (up.total > 80) {
+    signals.push({ level: 'info', type: '突发', icon: '🚀', title: `涨停${up.total}家，赚钱效应极强`, desc: '涨停家数过多，市场情绪亢奋，注意高位股分歧风险。' });
+  } else if (down.total > 50) {
+    signals.push({ level: 'danger', type: '突发', icon: '💀', title: `跌停${down.total}家，亏钱效应显著`, desc: '跌停家数过多，市场恐慌，控制仓位。' });
+  }
+
+  list.innerHTML = signals.length ? signals.map(s => `
+    <div class="signal-item ${s.level}">
+      <span class="signal-icon">${s.icon}</span>
+      <div>
+        <div class="signal-title">${s.title} <span class="signal-type-tag">${s.type}</span></div>
+        <div class="signal-desc">${s.desc}</div>
+      </div>
+    </div>
+  `).join('') : '<div class="empty-tip">暂无明显反常/突发信号</div>';
 }
 
 // ===== 6. 特殊信号检测 =====
@@ -1882,8 +2128,10 @@ async function loadData() {
     renderSectorLinkage(data);
     renderDragonStocks(data);
     renderSectorAdvice(data);
-    // renderSupplyChain 内部会联动渲染 卡脖子/链主/飞轮/投资动向/案例/建议
+    // renderSupplyChain 仅联动产业链面板（卡脖子/建议）
     renderSupplyChain();
+    // 产业生态独立按未来板块渲染
+    renderEcologyAll();
     renderFutureSectors();
     renderPolicyCalendar();
     renderPolicyMainlines();

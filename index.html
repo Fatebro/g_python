@@ -307,6 +307,29 @@
     .signal-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
     .signal-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
 
+    .signal-type-tag {
+      display: inline-block;
+      padding: 1px 7px;
+      margin-left: 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    .signal-type-tag.danger,
+    .signal-item.danger .signal-type-tag {
+      background: var(--up-bg); color: var(--up);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .signal-item.warn .signal-type-tag {
+      background: var(--warn-bg); color: var(--warn);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .signal-item.info .signal-type-tag {
+      background: rgba(34, 211, 238, 0.12); color: var(--info);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+    }
+
     /* ===== 情绪指标 ===== */
     .mood-stats {
       display: grid;
@@ -1319,17 +1342,17 @@
       </div>
     </div>
 
-    <!-- 产业生态构建 -->
+    <!-- 产业生态构建（按未来板块切换，独立于产业链传导）-->
     <div class="tab-panel" id="panel-ecology">
       <div class="card">
-        <div class="card-title">🌳 产业链选择（与产业链拆解联动）</div>
+        <div class="card-title">🔮 未来板块选择（独立于产业链传导）<span class="horizon-tag">思路④ · 1年-10年</span></div>
         <div class="chain-selector" id="ecology-chain-tabs">
           <div class="empty-tip">加载中...</div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">提示：点击上方任一产业链，下方链主/飞轮/投资动向/案例将同步切换。</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">提示：点击上方任一未来板块，下方链主/飞轮/投资动向/案例将独立切换。本面板不跟随「产业链传导」面板。</div>
       </div>
       <div class="card">
-        <div class="card-title">🌳 链主公司追踪（当前产业链）<span class="horizon-tag">思路④ · 1年-10年</span></div>
+        <div class="card-title">🌳 链主公司追踪（当前未来板块）<span class="horizon-tag">思路④ · 1年-10年</span></div>
         <div class="chain-leader-list" id="chain-leader-list">
           <div class="empty-tip">加载中...</div>
         </div>
@@ -1457,6 +1480,14 @@
             <div class="fund-col-title down">主力净流出</div>
             <div class="rank-list" id="stock-outflow-list"></div>
           </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔍 反常信号 / 突发信号（与资金流入同步）<span class="horizon-tag">思路② · 数据化反常</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">基于资金流向自动检测：板块巨额流入/流出、价跌资金进背离、价涨资金出出货、个股巨额流入、北向异动、涨跌停极端。随资金流入同步刷新。</div>
+        <div class="signal-list scroll-list" id="abnormal-signal-list" style="max-height:520px;">
+          <div class="empty-tip">加载中...</div>
         </div>
       </div>
 

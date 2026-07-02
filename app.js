@@ -465,6 +465,157 @@ function renderInstAdvice(data) {
   $('inst-advice').innerHTML = lines.join('');
 }
 
+// ===== 2e. 产业生态构建 =====
+function renderChainLeaders() {
+  const leaders = [
+    {
+      industry: 'AI光模块',
+      name: '中际旭创',
+      code: '300308',
+      marketCap: '1.5万亿',
+      revenue: '382亿',
+      growth: '+192%',
+      status: '链主'
+    },
+    {
+      industry: '新能源电池',
+      name: '宁德时代',
+      code: '300750',
+      marketCap: '1.2万亿',
+      revenue: '4000亿+',
+      growth: '+40%',
+      status: '链主'
+    },
+    {
+      industry: '新能源汽车',
+      name: '比亚迪',
+      code: '002594',
+      marketCap: '8000亿',
+      revenue: '8000亿+',
+      growth: '+50%',
+      status: '链主'
+    },
+    {
+      industry: '半导体设备',
+      name: '北方华创',
+      code: '002371',
+      marketCap: '5000亿',
+      revenue: '300亿',
+      growth: '+70%',
+      status: '链主'
+    },
+    {
+      industry: '光伏',
+      name: '隆基绿能',
+      code: '601012',
+      marketCap: '3000亿',
+      revenue: '1500亿',
+      growth: '+30%',
+      status: '链主'
+    },
+    {
+      industry: '消费电子',
+      name: '立讯精密',
+      code: '002475',
+      marketCap: '2000亿',
+      revenue: '2000亿',
+      growth: '+20%',
+      status: '链主'
+    }
+  ];
+  
+  $('chain-leader-list').innerHTML = leaders.map(l => `
+    <div class="chain-leader-card">
+      <span class="leader-badge">${l.status}</span>
+      <div class="leader-industry">🔧 ${l.industry}</div>
+      <div class="leader-name">${l.name}<span class="leader-code">${l.code}</span></div>
+      <div class="leader-metrics">
+        <div class="leader-metric">
+          <div class="leader-metric-value">${l.marketCap}</div>
+          <div class="leader-metric-label">市值</div>
+        </div>
+        <div class="leader-metric">
+          <div class="leader-metric-value">${l.revenue}</div>
+          <div class="leader-metric-label">营收</div>
+        </div>
+        <div class="leader-metric">
+          <div class="leader-metric-value up">${l.growth}</div>
+          <div class="leader-metric-label">增长</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderEcologyFlywheel() {
+  const flywheel = [
+    {
+      icon: '🌱',
+      title: '链主崛起',
+      desc: '链主公司业绩爆发，成为行业核心节点',
+      companies: '中际旭创（AI光模块）、宁德时代（电池）',
+      active: true
+    },
+    {
+      icon: '📦',
+      title: '订单溢出',
+      desc: '链主订单带动上下游企业产能扩张',
+      companies: '源杰科技（光芯片）、亿纬锂能（电池）',
+      active: true
+    },
+    {
+      icon: '📈',
+      title: '上市带动',
+      desc: '链主上市后，上下游企业估值提升',
+      companies: '联讯仪器（测试）、欣旺达（电池）',
+      active: true
+    },
+    {
+      icon: '🏭',
+      title: '产业集聚',
+      desc: '更多产业链企业被吸引，形成产业集群',
+      companies: '苏州光通信集群、宁德新能源集群',
+      active: false
+    },
+    {
+      icon: '💰',
+      title: '链主基金',
+      desc: '链主参与投资决策，孵化更多优质项目',
+      companies: '中际旭创投资链、宁德时代投资链',
+      active: false
+    },
+    {
+      icon: '🔄',
+      title: '飞轮转动',
+      desc: '产业生态自我强化，持续创造价值',
+      companies: '整条产业链受益',
+      active: false
+    }
+  ];
+  
+  $('ecology-flywheel').innerHTML = flywheel.map((f, i) => `
+    <div class="flywheel-stage${f.active ? ' active' : ''}">
+      <span class="flywheel-icon">${f.icon}</span>
+      <div class="flywheel-info">
+        <div class="flywheel-title">${i + 1}. ${f.title}</div>
+        <div class="flywheel-desc">${f.desc}</div>
+        <div class="flywheel-companies">相关标的：${f.companies}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderEcologyAdvice() {
+  const lines = [];
+  lines.push(`<p><strong>产业生态思路：</strong>找到能成为「链主」的公司，在它还不值钱的时候下注，等待它构建出一整条产业链的飞轮效应。</p>`);
+  lines.push(`<p><strong>当前链主：</strong>中际旭创（AI光模块）、宁德时代（新能源电池）、比亚迪（新能源汽车）、北方华创（半导体设备）。</p>`);
+  lines.push(`<p><strong>产业链机会：</strong>当链主公司业绩爆发时，机会不在链主本身（已经太贵），而在它的上游供应商和产业链延伸企业。</p>`);
+  lines.push(`<p><strong>苏州案例：</strong>2008年投资旭创科技3000万，18年后长成中际旭创，带动源杰科技、联讯仪器等一批公司崛起。</p>`);
+  lines.push(`<p><strong>操作建议：</strong>关注链主公司的投资动向，跟踪它们持股或合作的上下游企业，这些是产业生态的下一波机会。</p>`);
+  
+  $('ecology-advice').innerHTML = lines.join('');
+}
+
 // ===== 3. 大资金流向（板块资金）=====
 function renderFundFlow(data) {
   if (!data || !data.length) return;
@@ -1120,6 +1271,9 @@ async function loadData() {
     renderSupplyChain();
     renderBottleneckList();
     renderSupplyAdvice();
+    renderChainLeaders();
+    renderEcologyFlywheel();
+    renderEcologyAdvice();
     renderShortTermSentiment(data);
     renderFundFlow(data.sectorFundFlow);
     renderInstitutional(data.northbound);

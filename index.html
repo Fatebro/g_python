@@ -465,6 +465,52 @@
       color: var(--text-dim);
     }
 
+    /* ===== 链主公司列表 ===== */
+    .chain-leader-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .chain-leader-card {
+      background: var(--bg-soft);
+      border-radius: 8px;
+      padding: 14px;
+      border: 2px solid var(--accent);
+      position: relative;
+    }
+    .chain-leader-card .leader-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: var(--accent);
+      color: white;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .leader-industry { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+    .leader-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .leader-code { font-size: 11px; color: var(--text-muted); }
+    .leader-metrics { display: flex; gap: 16px; margin-top: 10px; }
+    .leader-metric { text-align: center; }
+    .leader-metric-value { font-size: 14px; font-weight: 600; }
+    .leader-metric-label { font-size: 10px; color: var(--text-dim); }
+
+    /* ===== 产业飞轮 ===== */
+    .ecology-flywheel { display: flex; flex-direction: column; gap: 12px; }
+    .flywheel-stage {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px;
+      background: var(--bg-soft);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+    .flywheel-stage.active { border-left-color: var(--up); background: rgba(34, 197, 94, 0.06); }
+    .flywheel-icon { font-size: 24px; flex-shrink: 0; }
+    .flywheel-info { flex: 1; }
+    .flywheel-title { font-weight: 600; margin-bottom: 3px; }
+    .flywheel-desc { font-size: 12px; color: var(--text-dim); }
+    .flywheel-companies { font-size: 11px; color: var(--accent); margin-top: 4px; }
+
     /* ===== 北向数据卡片 ===== */
     .nb-stats {
       display: grid;
@@ -740,6 +786,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="sector">📊 板块轮动龙头</button>
       <button class="tab-btn" data-tab="supply">🔗 产业链传导</button>
+      <button class="tab-btn" data-tab="ecology">🌳 产业生态</button>
       <button class="tab-btn" data-tab="fund">💰 大资金流向</button>
       <button class="tab-btn" data-tab="inst">🏛️ 机构资金验证</button>
       <button class="tab-btn" data-tab="shortterm">⚡ 短期情绪</button>
@@ -806,6 +853,28 @@
       <div class="card">
         <div class="card-title">💡 产业链传导策略建议</div>
         <div id="supply-advice" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 产业生态构建 -->
+    <div class="tab-panel" id="panel-ecology">
+      <div class="card">
+        <div class="card-title">🌳 链主公司追踪</div>
+        <div class="chain-leader-list" id="chain-leader-list">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔗 产业链飞轮效应</div>
+        <div class="ecology-flywheel" id="ecology-flywheel">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">💡 产业生态投资策略建议</div>
+        <div id="ecology-advice" class="text-report">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>

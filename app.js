@@ -251,6 +251,220 @@ function renderSectorRotation(data) {
   ).join('');
 }
 
+// ===== 2b. 热点板块龙头股 + 策略建议 =====
+function renderDragonStocks(data) {
+  const sectorData = data.sectorRank || [];
+  const stockData = data.stockFundInflow || [];
+  
+  const topSectors = [...sectorData].sort((a, b) => b.changePct - a.changePct).slice(0, 3);
+  
+  const dragonCards = [];
+  const usedCodes = new Set();
+  
+  for (const sector of topSectors) {
+    const sectorStocks = stockData.filter(s => s.industry === sector.name || 
+      (s.industry && sector.name.includes(s.industry)) || 
+      (sector.name && s.industry && s.industry.includes(sector.name))
+    );
+    
+    const topStocks = sectorStocks.slice(0, 3);
+    for (const stock of topStocks) {
+      if (!usedCodes.has(stock.code)) {
+        usedCodes.add(stock.code);
+        dragonCards.push({
+          sector: sector.name,
+          name: stock.name,
+          code: stock.code,
+          price: stock.price,
+          changePct: stock.changePct,
+          inflow: stock.mainNetInflow
+        });
+      }
+    }
+  }
+  
+  if (dragonCards.length === 0) {
+    $('dragon-stocks').innerHTML = '<div class="empty-tip">暂无龙头股数据</div>';
+    return;
+  }
+  
+  $('dragon-stocks').innerHTML = dragonCards.slice(0, 6).map(s => `
+    <div class="dragon-card ${s.changePct >= 0 ? 'up' : 'down'}">
+      <div class="dragon-sector">🔥 ${s.sector}</div>
+      <div class="dragon-name">${s.name}<span class="dragon-code">${s.code}</span></div>
+      <div class="dragon-price ${s.changePct >= 0 ? 'up' : 'down'}">
+        ${s.price != null ? s.price.toFixed(2) : '--'}
+      </div>
+      <div class="dragon-pct ${s.changePct >= 0 ? 'up' : 'down'}">
+        ${fmtPct(s.changePct)}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSectorAdvice(data) {
+  const sectorData = data.sectorRank || [];
+  const fundData = data.sectorFundFlow || [];
+  
+  if (sectorData.length === 0) {
+    $('sector-advice').innerHTML = '<div class="empty-tip">数据加载中...</div>';
+    return;
+  }
+  
+  const sorted = [...sectorData].sort((a, b) => b.changePct - a.changePct);
+  const top3 = sorted.slice(0, 3);
+  const bot3 = sorted.slice(-3);
+  
+  const sortedFund = [...fundData].sort((a, b) => b.mainNetInflow - a.mainNetInflow);
+  const topFund3 = sortedFund.slice(0, 3);
+  
+  const lines = [];
+  lines.push(`<p><strong>当前热点方向：</strong>${top3.map(s => s.name).join('、')}，资金流向与涨幅共振，可重点关注。</p>`);
+  lines.push(`<p><strong>资金认可板块：</strong>${topFund3.map(s => s.name + '（+' + (s.mainNetInflow / 100000000).toFixed(2) + '亿）').join('、')}，主力持续加仓，持续性较强。</p>`);
+  lines.push(`<p><strong>风险规避：</strong>${bot3.map(s => s.name).join('、')}，近期跌幅较大，暂不建议抄底。</p>`);
+  lines.push(`<p><strong>策略要点：</strong>跟着资金走，买行业龙头，板块轮动就换仓。关注热点持续性，3日内未继续走强则果断切换。</p>`);
+  
+  $('sector-advice').innerHTML = lines.join('');
+}
+
+// ===== 2c. 产业链传导分析 =====
+function renderSupplyChain() {
+  const aiChain = [
+    { layer: '下游', nodes: ['AI应用', '大模型', '智能硬件'], bottleneck: false },
+    { layer: '中游', nodes: ['GPU芯片', 'CPU芯片', '存储芯片'], bottleneck: false },
+    { layer: '上游', nodes: ['光模块', 'CPO', '光芯片'], bottleneck: true },
+    { layer: '材料', nodes: ['光刻胶', '靶材', '电子特气'], bottleneck: true },
+    { layer: '设备', nodes: ['光刻机', '刻蚀机', '薄膜沉积'], bottleneck: true }
+  ];
+  
+  const newEnergyChain = [
+    { layer: '下游', nodes: ['新能源汽车', '储能', '光伏电站'], bottleneck: false },
+    { layer: '中游', nodes: ['电池', '组件', '逆变器'], bottleneck: false },
+    { layer: '上游', nodes: ['锂矿', '钴矿', '硅料'], bottleneck: true },
+    { layer: '材料', nodes: ['电解液', '正极材料', '负极材料'], bottleneck: false },
+    { layer: '设备', nodes: ['电池设备', '光伏设备', '检测设备'], bottleneck: false }
+  ];
+  
+  function renderChain(containerId, chain) {
+    $(containerId).innerHTML = chain.map(layer => `
+      <div class="supply-layer">
+        <div class="supply-layer-label">${layer.layer}</div>
+        <div class="supply-nodes">
+          ${layer.nodes.map(node => `
+            <span class="supply-node${layer.bottleneck ? ' bottleneck' : ''}">${node}</span>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  renderChain('supply-chain-ai', aiChain);
+  renderChain('supply-chain-newenergy', newEnergyChain);
+}
+
+function renderBottleneckList() {
+  const bottlenecks = [
+    {
+      title: '光模块/CPO',
+      desc: 'AI数据中心最关键的高速互联组件，800G/1.6T需求爆发，产能扩张周期长，是AI算力产业链最窄环节。',
+      stocks: '中际旭创、光迅科技、新易盛、天孚通信'
+    },
+    {
+      title: '半导体材料',
+      desc: '光刻胶、靶材、电子特气等被海外垄断，国产替代空间巨大，是半导体产业链卡脖子最严重的环节。',
+      stocks: '南大光电、江化微、安集科技、雅克科技'
+    },
+    {
+      title: '高端光刻机',
+      desc: '芯片制造最核心设备，ASML垄断EUV光刻机，国产替代任重道远，是半导体产业链最大瓶颈。',
+      stocks: '中芯国际、北方华创、中微公司'
+    },
+    {
+      title: '锂矿/硅料',
+      desc: '新能源产业链上游核心资源，供给弹性小，价格波动直接影响中下游利润，是新能源产业链的关键瓶颈。',
+      stocks: '赣锋锂业、天齐锂业、通威股份、隆基绿能'
+    }
+  ];
+  
+  $('bottleneck-list').innerHTML = bottlenecks.map(b => `
+    <div class="bottleneck-item">
+      <span class="bottleneck-icon">🎯</span>
+      <div class="bottleneck-info">
+        <div class="bottleneck-title">${b.title}</div>
+        <div class="bottleneck-desc">${b.desc}</div>
+        <div class="bottleneck-stocks">相关标的：${b.stocks}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSupplyAdvice() {
+  const lines = [];
+  lines.push(`<p><strong>产业链传导思路：</strong>从下游需求爆发，向上游传导，找最窄的瓶颈环节，这就是最大的投资机会。</p>`);
+  lines.push(`<p><strong>AI赛道重点：</strong>光模块、CPO、光芯片是AI算力最核心的卡脖子环节，需求确定性高，值得重点跟踪。</p>`);
+  lines.push(`<p><strong>新能源赛道重点：</strong>锂矿、硅料是上游核心资源，价格企稳回升时，中下游利润空间打开，可关注。</p>`);
+  lines.push(`<p><strong>验证方法：</strong>关注龙头公司订单公告、产能扩张计划、机构持仓变化，确认逻辑成立。</p>`);
+  
+  $('supply-advice').innerHTML = lines.join('');
+}
+
+// ===== 2d. 北向资金行业配置趋势 =====
+function renderNorthboundSectorTrend(data) {
+  const sectorData = data.sectorFundFlow || [];
+  const nbData = data.northbound;
+  
+  if (sectorData.length === 0 || !nbData) {
+    $('nb-sector-trend').innerHTML = '<div class="empty-tip">数据加载中...</div>';
+    return;
+  }
+  
+  const sorted = [...sectorData].sort((a, b) => b.mainNetInflow - a.mainNetInflow);
+  const top8 = sorted.slice(0, 8);
+  
+  const maxFlow = Math.max(...top8.map(s => Math.abs(s.mainNetInflow)));
+  
+  $('nb-sector-trend').innerHTML = top8.map(s => {
+    const pct = (Math.abs(s.mainNetInflow) / maxFlow * 100).toFixed(0);
+    const isUp = s.mainNetInflow >= 0;
+    return `
+      <div class="nb-sector-item">
+        <span style="width: 80px; flex-shrink: 0;">${s.name}</span>
+        <div class="nb-sector-bar">
+          <div class="nb-sector-bar-fill ${isUp ? 'up' : 'down'}" style="width: ${pct}%"></div>
+        </div>
+        <span style="width: 60px; text-align: right; font-size: 11px;">${isUp ? '+' : ''}${(s.mainNetInflow / 100000000).toFixed(1)}亿</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderInstAdvice(data) {
+  const nb = data.northbound?.latest;
+  
+  if (!nb) {
+    $('inst-advice').innerHTML = '<div class="empty-tip">数据加载中...</div>';
+    return;
+  }
+  
+  const lines = [];
+  
+  if (nb.total > 50) {
+    lines.push(`<p><strong>外资大幅流入：</strong>北向资金当日净流入 ${nb.total.toFixed(2)} 亿，外资看好A股，可跟随配置核心资产。</p>`);
+    lines.push(`<p><strong>验证方法：</strong>看连续几周/几个月的趋势，不是单天数据。机构家数增加比持仓市值增加更有意义。</p>`);
+    lines.push(`<p><strong>重点关注：</strong>外资偏好的消费、医药、科技龙头，长期持有胜率较高。</p>`);
+  } else if (nb.total < -30) {
+    lines.push(`<p><strong>外资大幅流出：</strong>北向资金当日净流出 ${Math.abs(nb.total).toFixed(2)} 亿，外资风险偏好下降，需谨慎。</p>`);
+    lines.push(`<p><strong>验证方法：</strong>关注是否持续流出，单次流出可能是短期调仓，持续流出需警惕。</p>`);
+    lines.push(`<p><strong>操作建议：</strong>控制仓位，转向防御性板块，等待外资回流信号。</p>`);
+  } else {
+    lines.push(`<p><strong>外资流向平稳：</strong>北向资金当日${nb.total >= 0 ? '净流入' : '净流出'} ${Math.abs(nb.total).toFixed(2)} 亿，市场处于观望状态。</p>`);
+    lines.push(`<p><strong>验证方法：</strong>结合行业资金流向，看外资在哪些行业持续加仓。</p>`);
+    lines.push(`<p><strong>操作建议：</strong>按A股自身节奏操作，关注板块轮动和资金流向。</p>`);
+  }
+  
+  $('inst-advice').innerHTML = lines.join('');
+}
+
 // ===== 3. 大资金流向（板块资金）=====
 function renderFundFlow(data) {
   if (!data || !data.length) return;
@@ -901,11 +1115,16 @@ async function loadData() {
     renderMarketIndex(data.marketIndex);
     renderGlobalMarket(data.globalMarket);
     renderSectorRotation(data.sectorRank);
+    renderDragonStocks(data);
+    renderSectorAdvice(data);
+    renderSupplyChain();
+    renderBottleneckList();
+    renderSupplyAdvice();
     renderShortTermSentiment(data);
-    renderLongTermValue(data);
     renderFundFlow(data.sectorFundFlow);
     renderInstitutional(data.northbound);
-    renderMarketSignals(data);
+    renderNorthboundSectorTrend(data);
+    renderInstAdvice(data);
     renderTextReport(data);
 
     const now = new Date();

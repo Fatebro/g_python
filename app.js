@@ -481,7 +481,217 @@ function generateTextReport(data) {
   return lines.join('\n\n');
 }
 
-// ===== 8. 渲染文字报告 =====
+// ===== 8. 短期情绪分析 =====
+function renderShortTermSentiment(data) {
+  if (!data) return;
+
+  // 计算情绪评分（基于涨跌停数量）
+  const ztCount = data.limitUp?.total || 0;
+  const dtCount = data.limitDown?.total || 0;
+  const ratio = dtCount > 0 ? ztCount / dtCount : ztCount;
+
+  let sentimentScore = 50;
+  let sentimentLevel = '中性';
+  let levelClass = 'neutral';
+
+  if (ratio > 5) { sentimentScore = 85; sentimentLevel = '极度亢奋'; levelClass = 'up'; }
+  else if (ratio > 3) { sentimentScore = 70; sentimentLevel = '偏强'; levelClass = 'up'; }
+  else if (ratio > 1.5) { sentimentScore = 55; sentimentLevel = '温和'; levelClass = 'neutral'; }
+  else if (ratio > 0.5) { sentimentScore = 40; sentimentLevel = '偏弱'; levelClass = 'down'; }
+  else { sentimentScore = 25; sentimentLevel = '冰点'; levelClass = 'down'; }
+
+  $('short-sentiment-score').textContent = sentimentScore;
+  $('short-sentiment-level').textContent = sentimentLevel;
+  $('short-sentiment-level').className = 'mood-badge ' + levelClass;
+
+  // 游资活跃度
+  const hotMoneyScore = Math.min(100, Math.round(ztCount * 2 + (data.stockFundInflow?.length || 0)));
+  $('hot-money-score').textContent = hotMoneyScore;
+
+  // 涨停质量
+  const limitUpQuality = ztCount > 20 ? '优' : ztCount > 10 ? '良' : ztCount > 5 ? '中' : '差';
+  $('limit-up-quality').textContent = limitUpQuality;
+
+  // 游资动向分析
+  const hotMoneyHtml = generateHotMoneyAnalysis(data);
+  $('hot-money-analysis').innerHTML = hotMoneyHtml;
+
+  // 情绪周期定位
+  const cycleHtml = generateSentimentCycle(sentimentLevel, sentimentScore);
+  $('sentiment-cycle').innerHTML = cycleHtml;
+
+  // 短线操作建议
+  const adviceHtml = generateShortTermAdvice(sentimentLevel, sentimentScore, data);
+  $('short-term-advice').innerHTML = adviceHtml;
+}
+
+function generateHotMoneyAnalysis(data) {
+  const lines = [];
+  const ztCount = data.limitUp?.total || 0;
+  const dtCount = data.limitDown?.total || 0;
+
+  lines.push(`<p><strong>涨停数量：</strong>${ztCount}家，跌停${dtCount}家，涨跌停比${dtCount > 0 ? (ztCount/dtCount).toFixed(2) : '∞'}。</p>`);
+
+  if (data.stockFundInflow && data.stockFundInflow.length > 0) {
+    const top5 = data.stockFundInflow.slice(0, 5);
+    lines.push(`<p><strong>资金净流入TOP5：</strong>${top5.map(s => s.name).join('、')}，显示主力短期偏好方向。</p>`);
+  }
+
+  if (data.sectorRank && data.sectorRank.length > 0) {
+    const top3 = [...data.sectorRank].sort((a, b) => b.changePct - a.changePct).slice(0, 3);
+    lines.push(`<p><strong>短线热点板块：</strong>${top3.map(s => s.name + '(' + fmtPct(s.changePct) + ')').join('、')}，可关注持续性。</p>`);
+  }
+
+  return lines.join('');
+}
+
+function generateSentimentCycle(level, score) {
+  const phases = ['冰点', '复苏', '温和', '偏强', '亢奋'];
+  const currentPhase = level === '冰点' ? '冰点期' :
+                       level === '偏弱' ? '复苏期' :
+                       level === '中性' || level === '温和' ? '温和期' :
+                       level === '偏强' ? '偏强期' : '亢奋期';
+
+  const advice = level === '冰点' ? '市场情绪低迷，适合潜伏低吸，等待反转信号。' :
+                 level === '偏弱' ? '情绪开始回暖，可小幅试探，控制仓位。' :
+                 level === '中性' || level === '温和' ? '情绪温和，适合波段操作，快进快出。' :
+                 level === '偏强' ? '情绪偏强，可适度加仓，但注意止盈。' :
+                 '情绪亢奋，追高需谨慎，注意风险控制。';
+
+  return `<p><strong>当前阶段：</strong>${currentPhase}（评分：${score}/100）</p><p><strong>周期建议：</strong>${advice}</p>`;
+}
+
+function generateShortTermAdvice(level, score, data) {
+  const lines = [];
+
+  if (score >= 70) {
+    lines.push(`<p>1. <strong>仓位建议：</strong>情绪高涨时保持5-7成仓位，不宜满仓追涨。</p>`);
+    lines.push(`<p>2. <strong>操作策略：</strong>快进快出，日内为主，关注热点龙头持续性。</p>`);
+    lines.push(`<p>3. <strong>风险提示：</strong>情绪过热时易出现回调，做好止盈准备。</p>`);
+  } else if (score >= 50) {
+    lines.push(`<p>1. <strong>仓位建议：</strong>保持3-5成仓位，灵活调整。</p>`);
+    lines.push(`<p>2. <strong>操作策略：</strong>波段操作为主，关注板块轮动节奏。</p>`);
+    lines.push(`<p>3. <strong>关注方向：</strong>资金流入板块+题材热点共振方向。</p>`);
+  } else {
+    lines.push(`<p>1. <strong>仓位建议：</strong>控制在2-3成，耐心等待机会。</p>`);
+    lines.push(`<p>2. <strong>操作策略：</strong>低吸为主，避免追涨，关注超跌反弹。</p>`);
+    lines.push(`<p>3. <strong>防守重点：</strong>规避高位股，控制回撤风险。</p>`);
+  }
+
+  return lines.join('');
+}
+
+// ===== 9. 长期价值分析 =====
+function renderLongTermValue(data) {
+  if (!data) return;
+
+  // 价值评分（基于北向资金、板块分化等）
+  const nbTotal = data.northbound?.latest?.total || 0;
+  let valueScore = 50;
+  if (nbTotal > 50) valueScore = 70;
+  else if (nbTotal > 20) valueScore = 60;
+  else if (nbTotal < -30) valueScore = 30;
+  else if (nbTotal < -10) valueScore = 40;
+
+  $('long-value-score').textContent = valueScore;
+
+  // 行业生命周期
+  const stage = valueScore >= 60 ? '成长期' : valueScore >= 40 ? '成熟期' : '调整期';
+  $('industry-stage').textContent = stage;
+  $('industry-stage').className = 'mood-badge ' + (valueScore >= 60 ? 'up' : valueScore >= 40 ? 'neutral' : 'down');
+
+  // 北向长期趋势
+  const nbTrend = nbTotal > 30 ? '持续流入' : nbTotal > 0 ? '小幅流入' : nbTotal > -20 ? '小幅流出' : '持续流出';
+  $('northbound-long').textContent = nbTrend;
+
+  // 风格偏好
+  const style = valueScore >= 60 ? '价值+成长' : valueScore >= 40 ? '均衡' : '防守';
+  $('value-growth-style').textContent = style;
+
+  // 行业景气度分析
+  const prosperityHtml = generateIndustryProsperity(data);
+  $('industry-prosperity').innerHTML = prosperityHtml;
+
+  // 北向资金长期信号
+  const nbSignalHtml = generateNorthboundSignal(data);
+  $('northbound-signal').innerHTML = nbSignalHtml;
+
+  // 长期投资建议
+  const adviceHtml = generateLongTermAdvice(valueScore, data);
+  $('long-term-advice').innerHTML = adviceHtml;
+}
+
+function generateIndustryProsperity(data) {
+  const lines = [];
+
+  if (data.sectorFundFlow && data.sectorFundFlow.length > 0) {
+    const sorted = [...data.sectorFundFlow].sort((a, b) => b.mainNetInflow - a.mainNetInflow);
+    const top3 = sorted.slice(0, 3);
+    const bot3 = sorted.slice(-3).reverse();
+
+    lines.push(`<p><strong>高景气行业：</strong>${top3.map(s => s.name).join('、')}，主力资金持续流入，景气度向好。</p>`);
+    lines.push(`<p><strong>低景气行业：</strong>${bot3.map(s => s.name).join('、')}，资金流出明显，需谨慎配置。</p>`);
+  }
+
+  if (data.sectorRank && data.sectorRank.length > 0) {
+    const sorted = [...data.sectorRank].sort((a, b) => b.changePct - a.changePct);
+    const growthSectors = sorted.filter(s => s.changePct > 2).slice(0, 5);
+    if (growthSectors.length > 0) {
+      lines.push(`<p><strong>成长性突出：</strong>${growthSectors.map(s => s.name).join('、')}，涨幅超2%，短期成长动力足。</p>`);
+    }
+  }
+
+  return lines.join('');
+}
+
+function generateNorthboundSignal(data) {
+  const lines = [];
+  const nb = data.northbound?.latest;
+
+  if (!nb) {
+    return `<p>北向资金数据加载中...</p>`;
+  }
+
+  const total = nb.total || 0;
+  const sh = nb.sh || 0;
+  const sz = nb.sz || 0;
+
+  lines.push(`<p><strong>当日净流入：</strong>${total >= 0 ? '+' : ''}${total.toFixed(2)}亿，沪股通${sh.toFixed(2)}亿，深股通${sz.toFixed(2)}亿。</p>`);
+
+  if (total > 50) {
+    lines.push(`<p><strong>信号解读：</strong>外资大幅流入，看好A股中长期价值，关注外资偏好板块（消费、医药、科技）。</p>`);
+  } else if (total > 20) {
+    lines.push(`<p><strong>信号解读：</strong>外资稳步流入，市场信心恢复，适合中长期布局。</p>`);
+  } else if (total < -30) {
+    lines.push(`<p><strong>信号解读：</strong>外资大幅流出，短期避险情绪升温，需控制仓位。</p>`);
+  } else {
+    lines.push(`<p><strong>信号解读：</strong>外资流向平稳，市场处于观望状态。</p>`);
+  }
+
+  return lines.join('');
+}
+
+function generateLongTermAdvice(score, data) {
+  const lines = [];
+
+  if (score >= 60) {
+    lines.push(`<p>1. <strong>配置方向：</strong>关注北向资金持续流入板块，中长期持有优质龙头。</p>`);
+    lines.push(`<p>2. <strong>持仓周期：</strong>建议3-6个月以上，避免频繁调仓。</p>`);
+    lines.push(`<p>3. <strong>重点板块：</strong>消费升级、科技创新、高端制造等长期景气赛道。</p>`);
+  } else if (score >= 40) {
+    lines.push(`<p>1. <strong>配置方向：</strong>均衡配置价值与成长，关注业绩确定性高的标的。</p>`);
+    lines.push(`<p>2. <strong>持仓周期：</strong>建议1-3个月，适度灵活调整。</p>`);
+    lines.push(`<p>3. <strong>防守策略：</strong>保留部分现金仓位，等待确定性机会。</p>`);
+  } else {
+    lines.push(`<p>1. <strong>配置方向：</strong>偏防守策略，关注低估值、高分红板块。</p>`);
+    lines.push(`<p>2. <strong>持仓周期：</strong>观望为主，控制仓位在30%以下。</p>`);
+    lines.push(`<p>3. <strong>避险重点：</strong>公用事业、必需消费等防御性板块。</p>`);
+  }
+
+  return lines.join('');
+}
+
+// ===== 10. 渲染文字报告 =====
 function renderTextReport(data) {
   const report = generateTextReport(data);
   const container = $('text-report');
@@ -509,6 +719,8 @@ async function loadData() {
 
     renderMarketIndex(data.marketIndex);
     renderSectorRotation(data.sectorRank);
+    renderShortTermSentiment(data);
+    renderLongTermValue(data);
     renderFundFlow(data.sectorFundFlow);
     renderInstitutional(data.northbound);
     renderMarketSignals(data);

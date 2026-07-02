@@ -407,24 +407,84 @@
       font-size: 13px;
     }
 
-    /* ===== 响应式 ===== */
+    /* ===== 短期/长期情绪卡片 ===== */
+    .mood-stat-num {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .mood-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .mood-badge.up { background: var(--up-bg); color: var(--up); }
+    .mood-badge.down { background: var(--down-bg); color: var(--down); }
+    .mood-badge.neutral { background: var(--accent-bg); color: var(--accent); }
+    .mood-badge.warn { background: var(--warn-bg); color: var(--warn); }
+
+    .text-report {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text);
+    }
+    .text-report p { margin-bottom: 8px; }
+    .text-report strong { color: var(--up); font-weight: 500; }
+
+    /* ===== 响应式 - 竖屏优化 ===== */
     @media (max-width: 900px) {
       .market-index-grid { grid-template-columns: repeat(2, 1fr); }
       .grid-2 { grid-template-columns: 1fr; }
       .grid-3 { grid-template-columns: 1fr; }
       .mood-stats { grid-template-columns: repeat(2, 1fr); }
-      .nb-stats { grid-template-columns: repeat(3, 1fr); }
-      .header { padding: 12px 16px; }
-      .container { padding: 14px; }
-      .chart-container { height: 340px; }
+      .nb-stats { grid-template-columns: 1fr; }
+      .header {
+        padding: 12px 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .header-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .container { padding: 12px; }
+      .chart-container { height: 280px; }
+      .card { padding: 14px; margin-bottom: 14px; }
+      .card-title { font-size: 14px; margin-bottom: 12px; }
+      .mood-stat-num { font-size: 24px; }
+      .logo { font-size: 16px; }
+      .btn { padding: 6px 12px; font-size: 11px; }
     }
 
-    @media (max-width: 500px) {
-      .market-index-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-      .idx-price { font-size: 20px; }
-      .mood-stats { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 600px) {
+      .tabs { gap: 2px; }
+      .tab-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+      .market-index-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .idx-price { font-size: 18px; }
+      .idx-change { font-size: 12px; }
+      .mood-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .mood-stat { padding: 12px 6px; }
+      .mood-stat-num { font-size: 20px; }
+      .mood-stat-label { font-size: 10px; }
       .zt-item { grid-template-columns: 1fr 50px 60px; }
       .zt-days { display: none; }
+      .rank-item { padding: 6px 8px; font-size: 12px; }
+      .chart-container { height: 220px; }
+    }
+
+    @media (max-width: 400px) {
+      .market-index-grid { grid-template-columns: 1fr; }
+      .idx-price { font-size: 22px; }
+      .mood-stats { grid-template-columns: 1fr 1fr; }
+      .mood-badge { padding: 4px 10px; font-size: 11px; }
+      .text-report { font-size: 13px; line-height: 1.7; }
     }
   </style>
 </head>
@@ -463,6 +523,8 @@
     <!-- 标签页 -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="sector">📊 板块轮动</button>
+      <button class="tab-btn" data-tab="shortterm">⚡ 短期情绪</button>
+      <button class="tab-btn" data-tab="longterm">📈 长期价值</button>
       <button class="tab-btn" data-tab="fund">💰 资金流向</button>
       <button class="tab-btn" data-tab="inst">🏛️ 机构动向</button>
       <button class="tab-btn" data-tab="signal">🚨 市场信号</button>
@@ -489,6 +551,98 @@
               <div class="rank-list" id="sector-bottom3"></div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 短期情绪 -->
+    <div class="tab-panel" id="panel-shortterm">
+      <div class="card">
+        <div class="card-title">短期市场情绪分析</div>
+        <div class="mood-stats">
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="short-sentiment-score">--</div>
+            <div class="mood-stat-label">情绪评分</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num"><span class="mood-badge neutral" id="short-sentiment-level">--</span></div>
+            <div class="mood-stat-label">情绪阶段</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="hot-money-score">--</div>
+            <div class="mood-stat-label">游资活跃度</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="limit-up-quality">--</div>
+            <div class="mood-stat-label">涨停质量</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">游资动向分析</div>
+        <div id="hot-money-analysis" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">情绪周期定位</div>
+        <div id="sentiment-cycle" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">短线操作建议</div>
+        <div id="short-term-advice" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 长期价值 -->
+    <div class="tab-panel" id="panel-longterm">
+      <div class="card">
+        <div class="card-title">长期价值投资分析</div>
+        <div class="mood-stats">
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="long-value-score">--</div>
+            <div class="mood-stat-label">价值评分</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num"><span class="mood-badge neutral" id="industry-stage">--</span></div>
+            <div class="mood-stat-label">行业生命周期</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="northbound-long">--</div>
+            <div class="mood-stat-label">北向长期趋势</div>
+          </div>
+          <div class="mood-stat">
+            <div class="mood-stat-num" id="value-growth-style">--</div>
+            <div class="mood-stat-label">风格偏好</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">行业景气度分析</div>
+        <div id="industry-prosperity" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">北向资金长期信号</div>
+        <div id="northbound-signal" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">长期投资建议</div>
+        <div id="long-term-advice" class="text-report">
+          <div class="empty-tip">加载中...</div>
         </div>
       </div>
     </div>

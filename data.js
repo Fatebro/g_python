@@ -221,7 +221,7 @@ async function getStockFundFlow(sortField, sortDir, limit) {
   limit = limit || 20;
   // m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048 沪深A股
   const fs = 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23';
-  const fields = 'f2,f3,f12,f14,f62,f66,f69,f72,f75,f184';
+  const fields = 'f2,f3,f12,f14,f62,f66,f69,f72,f75,f84,f85,f100,f184';
   const url = `${EM_API_BASE}/qt/clist/get?pn=1&pz=${limit}&po=${sortDir}&np=1&ut=${EM_UT}&fltt=2&invt=2&fid=${sortField}&fs=${encodeURIComponent(fs)}&fields=${fields}`;
   const res = await jsonp(url);
   if (!res || !res.data || !res.data.diff) return [];
@@ -235,7 +235,10 @@ async function getStockFundFlow(sortField, sortDir, limit) {
     superLarge: item.f66,
     large: item.f69,
     medium: item.f72,
-    small: item.f75
+    small: item.f75,
+    superLargePct: item.f84,
+    largePct: item.f85,
+    industry: item.f100 || ''
   }));
 }
 

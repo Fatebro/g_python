@@ -259,27 +259,37 @@ function renderSectorRotation(data) {
 }
 
 // ===== 2b. 热点板块龙头股 + 策略建议 =====
+// 龙头筛选逻辑：
+//   1) 取板块涨幅 TOP3 作为热点方向
+//   2) 用个股 industry 字段（f100）匹配板块，命中即取该板块资金净流入最大的 2 只
+//   3) 匹配不足时，用「主力资金净流入 TOP 个股」兜底，保证永远有龙头展示
+function matchSector(stock, sectorName) {
+  const ind = (stock.industry || '').trim();
+  const sec = (sectorName || '').trim();
+  if (!ind || !sec) return false;
+  return ind === sec || ind.includes(sec) || sec.includes(ind);
+}
+
 function renderDragonStocks(data) {
   const sectorData = data.sectorRank || [];
   const stockData = data.stockFundInflow || [];
-  
-  const topSectors = [...sectorData].sort((a, b) => b.changePct - a.changePct).slice(0, 3);
-  
+
   const dragonCards = [];
   const usedCodes = new Set();
-  
+
+  // 路径一：按涨幅 TOP3 板块匹配龙头
+  const topSectors = [...sectorData].sort((a, b) => b.changePct - a.changePct).slice(0, 3);
   for (const sector of topSectors) {
-    const sectorStocks = stockData.filter(s => s.industry === sector.name || 
-      (s.industry && sector.name.includes(s.industry)) || 
-      (sector.name && s.industry && s.industry.includes(sector.name))
-    );
-    
-    const topStocks = sectorStocks.slice(0, 3);
-    for (const stock of topStocks) {
+    const sectorStocks = stockData
+      .filter(s => matchSector(s, sector.name))
+      .sort((a, b) => (b.mainNetInflow || 0) - (a.mainNetInflow || 0))
+      .slice(0, 2);
+    for (const stock of sectorStocks) {
       if (!usedCodes.has(stock.code)) {
         usedCodes.add(stock.code);
         dragonCards.push({
           sector: sector.name,
+          sectorPct: sector.changePct,
           name: stock.name,
           code: stock.code,
           price: stock.price,
@@ -289,21 +299,41 @@ function renderDragonStocks(data) {
       }
     }
   }
-  
+
+  // 路径二：兜底——用主力资金净流入 TOP 个股补齐至 6 只
+  if (dragonCards.length < 6) {
+    const fallback = [...stockData]
+      .sort((a, b) => (b.mainNetInflow || 0) - (a.mainNetInflow || 0));
+    for (const stock of fallback) {
+      if (usedCodes.has(stock.code)) continue;
+      usedCodes.add(stock.code);
+      dragonCards.push({
+        sector: stock.industry || '主力净流入',
+        sectorPct: null,
+        name: stock.name,
+        code: stock.code,
+        price: stock.price,
+        changePct: stock.changePct,
+        inflow: stock.mainNetInflow
+      });
+      if (dragonCards.length >= 6) break;
+    }
+  }
+
   if (dragonCards.length === 0) {
     $('dragon-stocks').innerHTML = '<div class="empty-tip">暂无龙头股数据</div>';
     return;
   }
-  
+
   $('dragon-stocks').innerHTML = dragonCards.slice(0, 6).map(s => `
     <div class="dragon-card ${s.changePct >= 0 ? 'up' : 'down'}">
-      <div class="dragon-sector">🔥 ${s.sector}</div>
+      <div class="dragon-sector">🔥 ${s.sector}${s.sectorPct != null ? ' ' + fmtPct(s.sectorPct) : ''}</div>
       <div class="dragon-name">${s.name}<span class="dragon-code">${s.code}</span></div>
       <div class="dragon-price ${s.changePct >= 0 ? 'up' : 'down'}">
         ${s.price != null ? s.price.toFixed(2) : '--'}
       </div>
       <div class="dragon-pct ${s.changePct >= 0 ? 'up' : 'down'}">
-        ${fmtPct(s.changePct)}
+        ${fmtPct(s.changePct)}${s.inflow != null ? ' · 主力' + (s.inflow >= 0 ? '+' : '') + (s.inflow / 1e8).toFixed(2) + '亿' : ''}
       </div>
     </div>
   `).join('');

@@ -407,6 +407,85 @@
       font-size: 13px;
     }
 
+    /* ===== 个股资金龙虎榜（左右对照） ===== */
+    .fund-dual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .fund-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .fund-col-title {
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin-bottom: 2px;
+    }
+    .fund-col-title.up {
+      background: var(--up-bg);
+      color: var(--up);
+    }
+    .fund-col-title.down {
+      background: var(--down-bg);
+      color: var(--down);
+    }
+
+    .stock-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 70px 70px;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+    .stock-row:hover { background: var(--bg-soft); }
+
+    .stock-row .sr-rank {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      margin: 0 auto;
+    }
+    .stock-row .sr-rank.up { background: var(--up-bg); color: var(--up); }
+    .stock-row .sr-rank.down { background: var(--down-bg); color: var(--down); }
+
+    .stock-row .sr-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .stock-row .sr-name em {
+      font-style: normal;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .stock-row .sr-pct {
+      font-weight: 500;
+      text-align: right;
+      font-size: 12px;
+    }
+    .stock-row .sr-amt {
+      font-weight: 500;
+      text-align: right;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
     /* ===== 短期/长期情绪卡片 ===== */
     .mood-stat-num {
       font-size: 28px;
@@ -458,14 +537,41 @@
       .mood-stat-num { font-size: 24px; }
       .logo { font-size: 16px; }
       .btn { padding: 6px 12px; font-size: 11px; }
+
+      /* 龙虎榜竖屏：左右仍两列但更紧凑 */
+      .fund-dual { gap: 10px; }
+      .stock-row {
+        grid-template-columns: 24px 1fr 56px 60px;
+        gap: 6px;
+        padding: 6px 4px;
+        font-size: 12px;
+      }
+      .stock-row .sr-rank {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+      }
+      .stock-row .sr-name em { display: none; }
+      .stock-row .sr-pct { font-size: 11px; }
+      .stock-row .sr-amt { font-size: 10px; }
+      .fund-col-title { font-size: 12px; padding: 5px 8px; }
     }
 
     @media (max-width: 600px) {
       .tabs { gap: 2px; }
       .tab-btn {
-        padding: 8px 12px;
-        font-size: 12px;
+        padding: 8px 10px;
+        font-size: 11px;
       }
+      .header {
+        padding: 10px 12px;
+      }
+      .header-left { gap: 10px; }
+      .header-right { gap: 8px; }
+      .status-bar { font-size: 11px; }
+      .logo { font-size: 15px; }
+      .btn { padding: 5px 10px; font-size: 11px; }
+      .auto-refresh { font-size: 11px; }
       .market-index-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
       .idx-price { font-size: 18px; }
       .idx-change { font-size: 12px; }
@@ -477,6 +583,24 @@
       .zt-days { display: none; }
       .rank-item { padding: 6px 8px; font-size: 12px; }
       .chart-container { height: 220px; }
+
+      /* 600px以下：龙虎榜改为单列交替（流入+流出交替排列） */
+      .fund-dual {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .stock-row {
+        grid-template-columns: 28px 1fr 60px 64px;
+        gap: 8px;
+        padding: 7px 6px;
+      }
+      .stock-row .sr-rank {
+        width: 22px;
+        height: 22px;
+        font-size: 11px;
+      }
+      .stock-row .sr-pct { font-size: 12px; }
+      .stock-row .sr-amt { font-size: 11px; }
     }
 
     @media (max-width: 400px) {
@@ -525,8 +649,8 @@
       <button class="tab-btn active" data-tab="sector">📊 板块轮动</button>
       <button class="tab-btn" data-tab="shortterm">⚡ 短期情绪</button>
       <button class="tab-btn" data-tab="longterm">📈 长期价值</button>
-      <button class="tab-btn" data-tab="fund">💰 资金流向</button>
-      <button class="tab-btn" data-tab="inst">🏛️ 机构动向</button>
+      <button class="tab-btn" data-tab="fund">💰 大资金流向</button>
+      <button class="tab-btn" data-tab="inst">🏛️ 北向资金</button>
       <button class="tab-btn" data-tab="signal">🚨 市场信号</button>
       <button class="tab-btn" data-tab="report">📝 分析报告</button>
     </div>
@@ -647,7 +771,7 @@
       </div>
     </div>
 
-    <!-- 资金流向 -->
+    <!-- 大资金流向 -->
     <div class="tab-panel" id="panel-fund">
       <div class="card">
         <div class="card-title">行业主力资金流向</div>
@@ -655,14 +779,17 @@
           <canvas id="chart-funds"></canvas>
         </div>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">个股资金净流入 TOP5</div>
-          <div class="rank-list" id="stock-inflow-top"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">个股资金净流出 TOP5</div>
-          <div class="rank-list" id="stock-outflow-top"></div>
+      <div class="card">
+        <div class="card-title">个股资金龙虎榜 TOP5</div>
+        <div class="fund-dual">
+          <div class="fund-col">
+            <div class="fund-col-title up">主力净流入</div>
+            <div class="rank-list" id="stock-inflow-list"></div>
+          </div>
+          <div class="fund-col">
+            <div class="fund-col-title down">主力净流出</div>
+            <div class="rank-list" id="stock-outflow-list"></div>
+          </div>
         </div>
       </div>
     </div>

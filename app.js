@@ -171,27 +171,27 @@ function renderFundFlow(data) {
     }
   });
 
-  // 个股资金榜单
+  // 个股资金龙虎榜（左右两列对照）
   const inflowTop5 = (currentData.stockFundInflow || []).slice(0, 5);
   const outflowTop5 = (currentData.stockFundOutflow || []).slice(0, 5);
 
-  $('stock-inflow-top').innerHTML = inflowTop5.map((s, i) =>
-    `<div class="rank-item">
-      <span class="rank-no up">${i + 1}</span>
-      <span class="rank-name">${s.name}<em>${s.code}</em></span>
-      <span class="rank-val up">${fmtPct(s.changePct)}</span>
-      <span class="rank-amt up">+${(s.mainNetInflow / 100000000).toFixed(2)}亿</span>
+  $('stock-inflow-list').innerHTML = inflowTop5.map((s, i) =>
+    `<div class="stock-row">
+      <span class="sr-rank up">${i + 1}</span>
+      <span class="sr-name">${s.name}<em>${s.code}</em></span>
+      <span class="sr-pct up">${fmtPct(s.changePct)}</span>
+      <span class="sr-amt up">+${(s.mainNetInflow / 100000000).toFixed(2)}亿</span>
     </div>`
-  ).join('');
+  ).join('') || '<div class="empty-tip">暂无数据</div>';
 
-  $('stock-outflow-top').innerHTML = outflowTop5.map((s, i) =>
-    `<div class="rank-item">
-      <span class="rank-no down">${i + 1}</span>
-      <span class="rank-name">${s.name}<em>${s.code}</em></span>
-      <span class="rank-val down">${fmtPct(s.changePct)}</span>
-      <span class="rank-amt down">${(s.mainNetInflow / 100000000).toFixed(2)}亿</span>
+  $('stock-outflow-list').innerHTML = outflowTop5.map((s, i) =>
+    `<div class="stock-row">
+      <span class="sr-rank down">${i + 1}</span>
+      <span class="sr-name">${s.name}<em>${s.code}</em></span>
+      <span class="sr-pct down">${fmtPct(s.changePct)}</span>
+      <span class="sr-amt down">${(s.mainNetInflow / 100000000).toFixed(2)}亿</span>
     </div>`
-  ).join('');
+  ).join('') || '<div class="empty-tip">暂无数据</div>';
 }
 
 // ===== 4. 机构动向（北向资金曲线 + 数据）=====

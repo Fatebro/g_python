@@ -500,11 +500,11 @@ function renderTextReport(data) {
 let refreshTimer = null;
 
 async function loadData() {
-  $('status-text').textContent = '数据加载中...';
+  $('status-text').textContent = '数据获取中...';
   $('status-dot').className = 'status-dot loading';
 
   try {
-    const data = await API.fetchAllMarketData();
+    const data = await fetchAllMarketData();
     currentData = data;
 
     renderMarketIndex(data.marketIndex);
@@ -520,7 +520,7 @@ async function loadData() {
     $('status-dot').className = 'status-dot ready';
   } catch (err) {
     console.error('加载失败:', err);
-    $('status-text').textContent = '加载失败';
+    $('status-text').textContent = '加载失败: ' + (err.message || err);
     $('status-dot').className = 'status-dot error';
   }
 }

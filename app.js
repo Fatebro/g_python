@@ -49,6 +49,142 @@ function renderMarketIndex(data) {
   }
 }
 
+// ===== 1b. 全球市场概览 =====
+function renderGlobalMarket(data) {
+  if (!data || !data.length) return;
+
+  // 渲染全球指数卡片
+  const container = $('global-market-grid');
+  if (container) {
+    container.innerHTML = data.map(idx => `
+      <div class="index-card">
+        <div class="idx-name">${idx.name}</div>
+        <div class="idx-price ${pctClass(idx.changePct)}">${idx.price != null ? idx.price.toFixed(2) : '--'}</div>
+        <div class="idx-change ${pctClass(idx.changePct)}">${fmtPct(idx.changePct)} ${idx.change != null ? (idx.change >= 0 ? '+' : '') + idx.change.toFixed(2) : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  // 外围环境分析
+  const us = data.filter(d => ['DJIA', 'SPX', 'NDX'].includes(d.code));
+  const asia = data.filter(d => ['HSI', 'N225'].includes(d.code));
+  const gold = data.find(d => d.code === 'XAU');
+
+  const lines = [];
+
+  // 美股走势
+  if (us.length) {
+    const usUpCount = us.filter(d => d.changePct >= 0).length;
+    const usStr = us.map(d => `${d.name}${fmtPct(d.changePct)}`).join('、');
+    lines.push(`<p><strong>美股方面：</strong>${usStr}。${usUpCount >= 2 ? '美股整体偏强，科技股方向活跃，外围风险偏好回升，利好A股开盘情绪。' : usUpCount === 0 ? '美股集体下跌，外围避险情绪升温，需关注对A股的传导压力。' : '美股走势分化，市场方向不明确，A股更多依赖自身逻辑。'}</p>`);
+  }
+
+  // 亚太市场
+  if (asia.length) {
+    const asiaStr = asia.map(d => `${d.name}${fmtPct(d.changePct)}`).join('、');
+    const hsi = data.find(d => d.code === 'HSI');
+    let asiaNote = '';
+    if (hsi) {
+      asiaNote = hsi.changePct > 1 ? '恒生强势，港股资金面改善，南向资金活跃度可能提升。' :
+                 hsi.changePct < -1 ? '恒生走弱，港股承压，关注港股通资金流向变化。' :
+                 '港股波动不大，对A股影响有限。';
+    }
+    lines.push(`<p><strong>亚太市场：</strong>${asiaStr}。${asiaNote}</p>`);
+  }
+
+  // 黄金
+  if (gold) {
+    const goldDir = gold.changePct >= 0 ? '上涨' : '下跌';
+    let goldNote = '';
+    if (gold.changePct > 1) goldNote = '黄金大幅上涨，全球避险情绪升温，利好黄金板块，但压制风险资产偏好。';
+    else if (gold.changePct < -1) goldNote = '黄金下跌，避险需求减弱，资金可能流向风险资产。';
+    else goldNote = '黄金波动不大，市场情绪相对平稳。';
+    lines.push(`<p><strong>黄金：</strong>COMEX黄金报 ${gold.price.toFixed(2)} 美元/盎司，${goldDir} ${fmtPct(gold.changePct)}，${goldNote}</p>`);
+  }
+
+  // 全球风险偏好综合判断
+  const usUpCount = us.filter(d => d.changePct >= 0).length;
+  const goldUp = gold && gold.changePct > 0.5;
+  let riskAppetite = '';
+  let riskClass = '';
+  if (usUpCount >= 2 && !goldUp) {
+    riskAppetite = '全球风险偏好回升（美股走强+黄金未大涨），外围环境偏多，有利于外资流入A股。';
+    riskClass = 'up';
+  } else if (usUpCount <= 1 && goldUp) {
+    riskAppetite = '全球避险情绪升温（美股走弱+黄金大涨），需警惕外资阶段性流出A股。';
+    riskClass = 'down';
+  } else if (usUpCount >= 2 && goldUp) {
+    riskAppetite = '美股与黄金同涨，可能反映通胀预期或流动性宽松预期，对A股影响偏中性偏多。';
+    riskClass = 'neutral';
+  } else {
+    riskAppetite = '外围市场信号不一，A股走势更多取决于国内基本面和资金面。';
+    riskClass = 'neutral';
+  }
+  lines.push(`<p><strong style="color: var(--accent);">外围环境综合研判：</strong><span class="${riskClass}">${riskAppetite}</span></p>`);
+
+  $('global-analysis').innerHTML = lines.join('');
+
+  // 全球视野下的A股研判
+  const aShareLines = generateGlobalAShareView(data);
+  $('global-a-share').innerHTML = aShareLines.join('');
+}
+
+function generateGlobalAShareView(globalData) {
+  const lines = [];
+  const d = currentData;
+  if (!d) return ['<div class="empty-tip">数据加载中...</div>'];
+
+  const us = globalData.filter(x => ['DJIA', 'SPX', 'NDX'].includes(x.code));
+  const gold = globalData.find(x => x.code === 'XAU');
+  const hsi = globalData.find(x => x.code === 'HSI');
+  const usUpCount = us.filter(x => x.changePct >= 0).length;
+
+  // 1. 外盘对A股开盘影响
+  lines.push(`<p><strong>1. 开盘影响研判：</strong></p>`);
+  if (usUpCount >= 2) {
+    lines.push(`<p>隔夜美股走强，A股高开概率较大。关注开盘后量能是否配合，若放量高开则短线做多氛围较好；若缩量高开则需警惕冲高回落。</p>`);
+  } else if (usUpCount === 0) {
+    lines.push(`<p>隔夜美股下跌，A股低开概率较大。若低开后快速企稳回升，说明A股内生支撑较强；若低开后持续走弱，则需控制仓位。</p>`);
+  } else {
+    lines.push(`<p>美股走势分化，对A股开盘影响有限，A股大概率按自身节奏运行。</p>`);
+  }
+
+  // 2. 外资流向预判
+  lines.push(`<p><strong>2. 外资流向预判：</strong></p>`);
+  const nb = d.northbound?.latest;
+  if (gold && gold.changePct > 1 && nb) {
+    lines.push(`<p>黄金大涨反映避险情绪升温，北向资金当日${nb.total >= 0 ? '净流入' : '净流出'} ${Math.abs(nb.total).toFixed(2)} 亿。若外围持续避险，外资可能阶段性流出，关注消费、医药等防御性板块。</p>`);
+  } else if (usUpCount >= 2 && nb) {
+    lines.push(`<p>外围风险偏好回升，北向资金当日${nb.total >= 0 ? '净流入' : '净流出'} ${Math.abs(nb.total).toFixed(2)} 亿。外资偏好核心资产，关注蓝筹白马方向。</p>`);
+  } else if (nb) {
+    lines.push(`<p>北向资金当日${nb.total >= 0 ? '净流入' : '净流出'} ${Math.abs(nb.total).toFixed(2)} 亿，外资流向需结合外围变化综合判断。</p>`);
+  }
+
+  // 3. 港股联动
+  lines.push(`<p><strong>3. 港股联动：</strong></p>`);
+  if (hsi) {
+    if (hsi.changePct > 1) {
+      lines.push(`<p>恒生指数涨 ${fmtPct(hsi.changePct)}，港股强势可能带动A股相关板块（金融、地产、互联网）走强，关注AH股溢价变化。</p>`);
+    } else if (hsi.changePct < -1) {
+      lines.push(`<p>恒生指数跌 ${fmtPct(hsi.changePct)}，港股走弱可能拖累A股金融、地产板块，但也可能促使南向资金回流A股。</p>`);
+    } else {
+      lines.push(`<p>恒生指数 ${fmtPct(hsi.changePct)}，港股波动不大，AH联动效应不明显。</p>`);
+    }
+  }
+
+  // 4. 操作建议
+  lines.push(`<p><strong>4. 操作建议：</strong></p>`);
+  if (usUpCount >= 2 && !(gold && gold.changePct > 1)) {
+    lines.push(`<p>外围偏多环境，可适度积极参与，关注量能配合，重点跟踪资金流入板块。</p>`);
+  } else if (usUpCount <= 1 || (gold && gold.changePct > 1)) {
+    lines.push(`<p>外围环境偏弱或避险情绪升温，建议控制仓位，偏向防御，关注黄金、公用事业等避险板块。</p>`);
+  } else {
+    lines.push(`<p>外围信号中性，按A股自身节奏操作，关注板块轮动和资金流向。</p>`);
+  }
+
+  return lines;
+}
+
 // ===== 2. 板块轮动分析（涨跌幅排行 + 柱状图）=====
 function renderSectorRotation(data) {
   if (!data || !data.length) return;
@@ -395,6 +531,22 @@ function detectSpecialSignals() {
     }
   }
 
+  // 信号6：外围市场极端波动
+  if (d.globalMarket && d.globalMarket.length) {
+    const us = d.globalMarket.filter(x => ['DJIA', 'SPX', 'NDX'].includes(x.code));
+    const gold = d.globalMarket.find(x => x.code === 'XAU');
+    const usDownCount = us.filter(x => x.changePct < -1.5).length;
+    const usUpStrong = us.filter(x => x.changePct > 1.5).length;
+    if (usDownCount >= 2) {
+      signals.push({ level: 'danger', title: '美股暴跌', desc: `美股大幅下跌：${us.filter(x => x.changePct < -1.5).map(x => x.name + fmtPct(x.changePct)).join('、')}，需警惕A股跟跌风险。` });
+    } else if (usUpStrong >= 2) {
+      signals.push({ level: 'info', title: '美股大涨', desc: `美股大幅上涨：${us.filter(x => x.changePct > 1.5).map(x => x.name + fmtPct(x.changePct)).join('、')}，利好A股开盘情绪。` });
+    }
+    if (gold && gold.changePct > 2) {
+      signals.push({ level: 'warn', title: '黄金大涨避险升温', desc: `COMEX黄金涨 ${fmtPct(gold.changePct)} 至 ${gold.price.toFixed(2)} 美元，全球避险情绪升温，关注黄金板块机会。` });
+    }
+  }
+
   if (signals.length === 0) {
     signals.push({ level: 'info', title: '市场运行平稳', desc: '未检测到极端信号，市场处于正常波动范围。' });
   }
@@ -407,7 +559,35 @@ function generateTextReport(data) {
   const lines = [];
   const dateStr = new Date().toLocaleDateString('zh-CN');
 
-  lines.push(`## 一、大盘概览`);
+  lines.push(`## 一、全球市场概览`);
+  if (data.globalMarket && data.globalMarket.length) {
+    const us = data.globalMarket.filter(d => ['DJIA', 'SPX', 'NDX'].includes(d.code));
+    const asia = data.globalMarket.filter(d => ['HSI', 'N225'].includes(d.code));
+    const gold = data.globalMarket.find(d => d.code === 'XAU');
+    if (us.length) {
+      lines.push(`**美股：** ${us.map(d => d.name + fmtPct(d.changePct)).join('、')}。`);
+    }
+    if (asia.length) {
+      lines.push(`**亚太：** ${asia.map(d => d.name + fmtPct(d.changePct)).join('、')}。`);
+    }
+    if (gold) {
+      lines.push(`**黄金：** COMEX黄金 ${gold.price.toFixed(2)} 美元，${fmtPct(gold.changePct)}。`);
+    }
+    const usUpCount = us.filter(d => d.changePct >= 0).length;
+    const goldUp = gold && gold.changePct > 0.5;
+    if (usUpCount >= 2 && !goldUp) {
+      lines.push(`外围风险偏好回升，利好A股开盘。`);
+    } else if (usUpCount <= 1 && goldUp) {
+      lines.push(`全球避险情绪升温，需警惕外资流出。`);
+    } else {
+      lines.push(`外围信号中性，A股更多依赖内生动力。`);
+    }
+  } else {
+    lines.push(`全球市场数据加载中...`);
+  }
+
+  lines.push('');
+  lines.push(`## 二、A股大盘概览`);
   if (data.marketIndex && data.marketIndex.length) {
     const sh = data.marketIndex.find(i => i.code === 'sh000001');
     const cyb = data.marketIndex.find(i => i.code === 'sz399006');
@@ -421,7 +601,7 @@ function generateTextReport(data) {
   }
 
   lines.push('');
-  lines.push(`## 二、板块轮动分析`);
+  lines.push(`## 三、板块轮动分析`);
   if (data.sectorRank && data.sectorRank.length) {
     const sorted = [...data.sectorRank].sort((a, b) => b.changePct - a.changePct);
     const top5 = sorted.slice(0, 5);
@@ -433,7 +613,7 @@ function generateTextReport(data) {
   }
 
   lines.push('');
-  lines.push(`## 三、主力资金流向`);
+  lines.push(`## 四、主力资金流向`);
   if (data.sectorFundFlow && data.sectorFundFlow.length) {
     const sorted = [...data.sectorFundFlow].sort((a, b) => b.mainNetInflow - a.mainNetInflow);
     const inflow3 = sorted.slice(0, 3);
@@ -447,7 +627,7 @@ function generateTextReport(data) {
   }
 
   lines.push('');
-  lines.push(`## 四、机构动向（北向资金）`);
+  lines.push(`## 五、机构动向（北向资金）`);
   if (data.northbound && data.northbound.latest) {
     const nb = data.northbound.latest;
     const dir = nb.total >= 0 ? '净流入' : '净流出';
@@ -460,7 +640,7 @@ function generateTextReport(data) {
   }
 
   lines.push('');
-  lines.push(`## 五、市场情绪与特殊信号`);
+  lines.push(`## 六、市场情绪与特殊信号`);
   if (data.limitUp && data.limitDown) {
     lines.push(`涨停 ${data.limitUp.total} 家，跌停 ${data.limitDown.total} 家，涨跌停比 ${data.limitDown.total > 0 ? (data.limitUp.total / data.limitDown.total).toFixed(2) : '∞'}。`);
   }
@@ -472,11 +652,12 @@ function generateTextReport(data) {
   });
 
   lines.push('');
-  lines.push(`## 六、操作建议`);
-  lines.push(`1. 主线方向：聚焦资金持续流入的板块，避免逆势抄底弱势板块。`);
-  lines.push(`2. 仓位控制：根据市场情绪调整仓位，亢奋时减仓、冰点时加仓。`);
-  lines.push(`3. 风格切换：关注权重与成长的轮动节奏，避免单边押注。`);
-  lines.push(`4. 风险提示：以上分析基于当日数据生成，仅供参考，不构成投资建议。`);
+  lines.push(`## 七、操作建议`);
+  lines.push(`1. 全球视野：结合外围市场环境判断A股开盘方向，美股走强+黄金未大涨时积极配置。`);
+  lines.push(`2. 主线方向：聚焦资金持续流入的板块，避免逆势抄底弱势板块。`);
+  lines.push(`3. 仓位控制：根据市场情绪调整仓位，亢奋时减仓、冰点时加仓。`);
+  lines.push(`4. 风格切换：关注权重与成长的轮动节奏，避免单边押注。`);
+  lines.push(`5. 风险提示：以上分析基于当日数据生成，仅供参考，不构成投资建议。`);
 
   return lines.join('\n\n');
 }
@@ -718,6 +899,7 @@ async function loadData() {
     currentData = data;
 
     renderMarketIndex(data.marketIndex);
+    renderGlobalMarket(data.globalMarket);
     renderSectorRotation(data.sectorRank);
     renderShortTermSentiment(data);
     renderLongTermValue(data);

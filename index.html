@@ -144,6 +144,10 @@
       margin-bottom: 20px;
     }
 
+    .market-index-grid.global {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
     .index-card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -516,6 +520,7 @@
     /* ===== 响应式 - 竖屏优化 ===== */
     @media (max-width: 900px) {
       .market-index-grid { grid-template-columns: repeat(2, 1fr); }
+      .market-index-grid.global { grid-template-columns: repeat(2, 1fr); }
       .grid-2 { grid-template-columns: 1fr; }
       .grid-3 { grid-template-columns: 1fr; }
       .mood-stats { grid-template-columns: repeat(2, 1fr); }
@@ -646,17 +651,45 @@
 
     <!-- 标签页 -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="sector">📊 板块轮动</button>
+      <button class="tab-btn active" data-tab="global">🌍 全球视野</button>
+      <button class="tab-btn" data-tab="sector">📊 板块轮动</button>
       <button class="tab-btn" data-tab="shortterm">⚡ 短期情绪</button>
-      <button class="tab-btn" data-tab="longterm">📈 长期价值</button>
       <button class="tab-btn" data-tab="fund">💰 大资金流向</button>
       <button class="tab-btn" data-tab="inst">🏛️ 北向资金</button>
+      <button class="tab-btn" data-tab="longterm">📈 长期价值</button>
       <button class="tab-btn" data-tab="signal">🚨 市场信号</button>
       <button class="tab-btn" data-tab="report">📝 分析报告</button>
     </div>
 
+    <!-- 全球视野 -->
+    <div class="tab-panel active" id="panel-global">
+      <div class="card">
+        <div class="card-title">全球主要市场指数</div>
+        <div class="market-index-grid global" id="global-market-grid">
+          <div class="index-card"><div class="idx-name">道琼斯</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+          <div class="index-card"><div class="idx-name">标普500</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+          <div class="index-card"><div class="idx-name">纳斯达克</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+          <div class="index-card"><div class="idx-name">恒生指数</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+          <div class="index-card"><div class="idx-name">日经225</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+          <div class="index-card"><div class="idx-name">黄金/美元</div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">外围环境分析</div>
+        <div id="global-analysis" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">全球视野下的A股研判</div>
+        <div id="global-a-share" class="text-report">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 板块轮动 -->
-    <div class="tab-panel active" id="panel-sector">
+    <div class="tab-panel" id="panel-sector">
       <div class="card">
         <div class="card-title">申万一级行业涨跌幅排行</div>
         <div class="grid-2">

@@ -70,7 +70,7 @@ function formatAmount(yi) {
 // ===== 1. 获取申万一级行业板块涨跌幅排行 =====
 async function getSectorRank(sortField, sortDir, limit) {
   sortField = sortField || 'f3';
-  sortDir = sortDir || 1;
+  if (sortDir == null) sortDir = 1;
   limit = limit || 31;
   const url = `${EM_API_BASE}/qt/clist/get?pn=1&pz=${limit}&po=${sortDir}&np=1&ut=${EM_UT}&fltt=2&invt=2&fid=${sortField}&fs=${SW_SECTOR_FS}&fields=${SW_SECTOR_PARAMS}`;
   const res = await jsonp(url);
@@ -93,7 +93,7 @@ async function getSectorRank(sortField, sortDir, limit) {
 const SECTOR_FUNDS_PARAMS = 'f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f84,f85,f86,f87';
 async function getSectorFundFlow(sortField, sortDir, limit) {
   sortField = sortField || 'f62';
-  sortDir = sortDir || 1;
+  if (sortDir == null) sortDir = 1;
   limit = limit || 31;
   const url = `${EM_API_BASE}/qt/clist/get?pn=1&pz=${limit}&po=${sortDir}&np=1&ut=${EM_UT}&fltt=2&invt=2&fid=${sortField}&fs=${SW_SECTOR_FS}&fields=${SECTOR_FUNDS_PARAMS}`;
   const res = await jsonp(url);
@@ -217,7 +217,7 @@ async function getMarketIndex() {
 // ===== 7. 获取个股资金流向（主力净流入排行前20）=====
 async function getStockFundFlow(sortField, sortDir, limit) {
   sortField = sortField || 'f62';
-  sortDir = sortDir || 1;
+  if (sortDir == null) sortDir = 1;
   limit = limit || 20;
   // m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048 沪深A股
   const fs = 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23';
@@ -239,12 +239,32 @@ async function getStockFundFlow(sortField, sortDir, limit) {
   }));
 }
 
+// ===== 8. 获取全球市场数据（海外指数+商品）=====
+// 100:海外指数  122:外盘商品
+// DJIA道琼斯 SPX标普500 NDX纳斯达克 HSI恒生 N225日经 XAU黄金
+async function getGlobalMarket() {
+  const secids = '100.DJIA,100.SPX,100.NDX,100.HSI,100.N225,122.XAU';
+  const fields = 'f2,f3,f4,f6,f12,f14';
+  const url = `${EM_API_BASE}/qt/ulist.np/get?fltt=2&secids=${secids}&fields=${fields}&ut=${EM_UT}`;
+  const res = await jsonp(url);
+  if (!res || !res.data || !res.data.diff) return [];
+  return res.data.diff.map(item => ({
+    code: item.f12,
+    name: item.f14,
+    price: item.f2,
+    changePct: item.f3,
+    change: item.f4,
+    turnover: item.f6
+  }));
+}
+
 // ===== 统一数据采集入口 =====
 async function fetchAllMarketData() {
   const result = {
     timestamp: new Date().toISOString(),
     status: 'loading',
     marketIndex: null,
+    globalMarket: null,
     sectorRank: null,
     sectorFundFlow: null,
     northbound: null,
@@ -261,6 +281,13 @@ async function fetchAllMarketData() {
     getMarketIndex()
       .then(data => { result.marketIndex = data; })
       .catch(err => { console.warn('大盘指数获取失败:', err); result.marketIndex = []; })
+  );
+
+  // 全球市场（海外指数+商品）
+  promises.push(
+    getGlobalMarket()
+      .then(data => { result.globalMarket = data; })
+      .catch(err => { console.warn('全球市场获取失败:', err); result.globalMarket = []; })
   );
 
   // 板块涨跌幅排行
@@ -326,6 +353,7 @@ window.MarketDataAPI = {
   getLimitUpPool,
   getLimitDownPool,
   getMarketIndex,
+  getGlobalMarket,
   getStockFundFlow,
   fetchAllMarketData,
   formatPct,

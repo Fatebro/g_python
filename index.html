@@ -1797,7 +1797,9 @@
       .grid-2-inline { grid-template-columns: 1fr; }
       .grid-3-inline { grid-template-columns: 1fr; }
       .grid-liquidity { grid-template-columns: repeat(2, 1fr); }
-      .market-index-grid.global { grid-template-columns: repeat(2, 1fr); }
+      .market-index-grid.global { grid-template-columns: repeat(3, 1fr); }
+      .market-index-grid.compact { grid-template-columns: 1fr 1fr; }
+      .global.compact { grid-template-columns: repeat(3, 1fr); }
       .time-horizon-bar { grid-template-columns: repeat(2, 1fr); }
       .chart-container { height: 240px; }
       .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 280px; transform: translateX(-100%); z-index: 200; box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
@@ -1814,6 +1816,9 @@
       .idx-price { font-size: 18px; }
       .idx-change { font-size: 12px; }
       .decision-metric { padding: 12px 6px; }
+      #decision-core-panel .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      #decision-core-panel .metric-value { font-size: 18px; }
+      #signal-details-panel .grid-2-inline { grid-template-columns: 1fr; }
       .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
       .tab-btn { flex-shrink: 0; padding: 8px 12px; font-size: 12px; white-space: nowrap; }
       .sector-score-table { font-size: 11px; }
@@ -1935,52 +1940,19 @@
 
   <div class="container">
 
-    <!-- 大盘指数概览（A股+全球联动分析）-->
+    <!-- 大盘指数概览（精简版：只显示最关键的7个指数）-->
     <div class="index-section">
-      <div class="market-index-grid" id="market-index-grid">
-        <div class="index-card"><div class="idx-name">上证指数<span class="idx-tooltip"><strong>上证指数 (000001)</strong>A股最具代表性的大盘指数，涵盖沪市全部上市公司，反映大盘蓝筹整体表现，是判断市场牛熊的核心基准。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
-        <div class="index-card"><div class="idx-name">深证成指<span class="idx-tooltip"><strong>深证成指 (399001)</strong>深市核心指数，选取500只市值最大、流动性最好的股票，反映深市主板整体走势，涵盖中盘成长股。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
-        <div class="index-card"><div class="idx-name">创业板指<span class="idx-tooltip"><strong>创业板指 (399006)</strong>选取创业板100只最具代表性股票，以科技成长、新能源、医药为主，是判断成长风格和市场风险偏好的关键指标。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
-        <div class="index-card"><div class="idx-name">科创50<span class="idx-tooltip"><strong>科创50 (000688)</strong>科创板市值最大、流动性最好的50只股票，聚焦硬科技、半导体、生物医药等高成长领域，波动率高，弹性大。</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
+      <div class="market-index-grid compact" id="market-index-grid" style="grid-template-columns:repeat(2,1fr);">
+        <div class="index-card main"><div class="idx-name">上证指数<span class="idx-tooltip">大盘蓝筹核心基准，判断市场牛熊</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
+        <div class="index-card growth"><div class="idx-name">创业板指<span class="idx-tooltip">科技成长风向标，反映风险偏好</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
       </div>
-      <div class="index-divider"><span>🌍 全球市场 · 流动性指标</span></div>
-      <div class="market-index-grid global" id="global-market-grid-top">
-        <div class="index-card"><div class="idx-name">道琼斯<span class="idx-tooltip"><strong>道琼斯工业平均指数</strong>美国最老牌的股指，由30只蓝筹工业股组成，代表美国传统经济和大盘蓝筹走势，是全球股市风向标之一。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">标普500<span class="idx-tooltip"><strong>标普500指数</strong>美国最具代表性的宽基指数，涵盖500只大盘股，覆盖各行业龙头，是判断美股整体走势和全球风险偏好的核心指标。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">纳斯达克<span class="idx-tooltip"><strong>纳斯达克综合指数</strong>以科技股为核心的指数，涵盖苹果、微软、英伟达等科技巨头，是全球科技成长风格的风向标，对A股科技板块有联动效应。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">恒生指数<span class="idx-tooltip"><strong>恒生指数</strong>香港股市核心指数，涵盖50只最大市值港股，是连接A股与全球市场的桥梁，受外资流向影响显著，与A股联动性强。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">日经225<span class="idx-tooltip"><strong>日经225指数</strong>日本股市核心指数，反映日本经济和亚太市场情绪，日本央行政策对全球流动性有重要影响，是亚洲股市重要参考。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-        <div class="index-card"><div class="idx-name">黄金/美元<span class="idx-tooltip"><strong>黄金现货价格</strong>全球避险资产核心标的，通胀预期、地缘政治、美元走势都会影响金价。黄金上涨通常预示市场风险偏好下降。</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-      </div>
-      <div class="market-index-grid global grid-liquidity" id="global-liquidity-grid">
-        <div class="index-card" style="border-left: 3px solid var(--warn);">
-          <div class="idx-name">VIX恐慌指数<span class="idx-tooltip"><strong>VIX波动率指数</strong>又称"恐慌指数"，反映标普500期权隐含波动率。VIX>30表示市场恐慌，<15表示市场乐观。是判断全球风险偏好的核心指标。</span></div>
-          <div class="idx-price" id="vix-price">--</div>
-          <div class="idx-change" id="vix-change">--</div>
-          <div class="idx-sub" id="vix-status">--</div>
-        </div>
-        <div class="index-card" style="border-left: 3px solid var(--accent);">
-          <div class="idx-name">美元指数(DXY)<span class="idx-tooltip"><strong>美元指数 (DXY)</strong>衡量美元对一篮子货币的汇率强弱。美元走强通常导致新兴市场资金外流、人民币贬值压力、外资流出A股。</span></div>
-          <div class="idx-price" id="dxy-price">--</div>
-          <div class="idx-change" id="dxy-change">--</div>
-          <div class="idx-sub" id="dxy-impact">--</div>
-        </div>
-        <div class="index-card" style="border-left: 3px solid var(--up);">
-          <div class="idx-name">10年期美债收益率<span class="idx-tooltip"><strong>10年期美国国债收益率</strong>全球资产定价的"锚"。美债收益率上行，压制成长股估值（尤其是高估值科技股），增加外资流向美股的吸引力。</span></div>
-          <div class="idx-price" id="ust10y-price">--</div>
-          <div class="idx-change" id="ust10y-change">--</div>
-          <div class="idx-sub" id="ust10y-impact">--</div>
-        </div>
-        <div class="index-card" style="border-left: 3px solid var(--down);">
-          <div class="idx-name">2年/10年利差<span class="idx-tooltip"><strong>2年与10年期美债收益率利差</strong>利差倒挂（2年>10年）是经典的经济衰退预警信号。倒挂越深，未来经济衰退概率越高，对风险资产不利。</span></div>
-          <div class="idx-price" id="yield-spread">--</div>
-          <div class="idx-change" id="spread-status">--</div>
-          <div class="idx-sub" id="recession-risk">--</div>
-        </div>
-      </div>
-      <div class="global-fund-flow" id="global-fund-flow">
-        <div class="gff-title">🌊 全球资金流向分析</div>
-        <div class="gff-content">加载中...</div>
+      <div class="index-divider"><span>🌍 全球联动 · 流动性</span></div>
+      <div class="market-index-grid global compact" id="global-market-grid-top" style="grid-template-columns:repeat(5,1fr);">
+        <div class="index-card"><div class="idx-name">标普500<span class="idx-tooltip">美股整体走势，全球风险偏好核心指标</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">纳斯达克<span class="idx-tooltip">科技股风向标，对A股科技有联动效应</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">恒生指数<span class="idx-tooltip">港股核心指数，外资流向敏感指标</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card" style="border-left:3px solid var(--warn);"><div class="idx-name">VIX<span class="idx-tooltip">恐慌指数，>30恐慌，<15乐观</span></div><div class="idx-price" id="vix-price">--</div><div class="idx-change" id="vix-change">--</div></div>
+        <div class="index-card" style="border-left:3px solid var(--accent);"><div class="idx-name">美元指数<span class="idx-tooltip">美元强弱影响外资流向</span></div><div class="idx-price" id="dxy-price">--</div><div class="idx-change" id="dxy-change">--</div></div>
       </div>
     </div>
 
@@ -2065,19 +2037,19 @@
     <!-- 板块综合评分（取代原热点排行/领涨领跌/资金流向多卡分散布局） -->
     <div class="tab-panel active" id="panel-sector">
       <div class="card">
-        <div class="card-title">📊 板块综合评分榜 <span class="horizon-tag">思路①·资金+趋势+流动性</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:400;">点击板块查看详情（资金·龙头·产业链·政策·联动）</span>
+        <div class="card-title">📊 板块综合评分榜 <span class="horizon-tag">资金+趋势+情绪+流动性</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:400;">点击板块查看详情</span>
         </div>
-        <div style="overflow-x:auto;">
+        <div class="sector-score-scroll" style="max-height:420px;overflow-y:auto;border-radius:8px;">
         <table class="sector-score-table" id="sector-score-table">
-          <thead>
+          <thead style="position:sticky;top:0;background:var(--bg-soft);z-index:1;">
             <tr>
               <th class="col-rank">#</th>
               <th class="col-name">板块</th>
               <th class="col-score">评分</th>
               <th class="col-pct">涨跌幅</th>
               <th class="col-fund">主力净流入</th>
-              <th class="col-liquidity">流动性</th>
+              <th class="col-hot">热度</th>
               <th class="col-action">建议</th>
             </tr>
           </thead>
@@ -2457,8 +2429,44 @@
         <div class="meta-item"><span class="meta-label">流通市值</span><span class="meta-val" id="modal-fmcap">--</span></div>
       </div>
       <div class="stock-modal-analysis">
-        <div class="analysis-title">📊 趋势分析</div>
-        <div class="analysis-content" id="modal-analysis">--</div>
+        <div class="analysis-title">📊 7维度综合评估框架</div>
+        <div class="stock-eval-grid" id="stock-eval-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;">
+          <!-- 1. 盈利能力与增长质量 -->
+          <div class="eval-card" id="eval-profit" style="background:var(--bg-soft);border-radius:8px;padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">💰 盈利能力与增长</div>
+            <div id="eval-profit-content" style="font-size:11px;line-height:1.7;color:var(--text-dim);">--</div>
+          </div>
+          <!-- 2. 偿债能力与资本结构 -->
+          <div class="eval-card" id="eval-debt" style="background:var(--bg-soft);border-radius:8px;padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">🏗️ 偿债能力与资本</div>
+            <div id="eval-debt-content" style="font-size:11px;line-height:1.7;color:var(--text-dim);">--</div>
+          </div>
+          <!-- 3. 运营效率 -->
+          <div class="eval-card" id="eval-ops" style="background:var(--bg-soft);border-radius:8px;padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">⚡ 运营效率</div>
+            <div id="eval-ops-content" style="font-size:11px;line-height:1.7;color:var(--text-dim);">--</div>
+          </div>
+          <!-- 4. 现金流状况 -->
+          <div class="eval-card" id="eval-cash" style="background:var(--bg-soft);border-radius:8px;padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">💵 现金流状况</div>
+            <div id="eval-cash-content" style="font-size:11px;line-height:1.7;color:var(--text-dim);">--</div>
+          </div>
+          <!-- 5. 创新与成长引擎 -->
+          <div class="eval-card" id="eval-growth" style="background:var(--bg-soft);border-radius:8px;padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">🚀 创新与成长引擎</div>
+            <div id="eval-growth-content" style="font-size:11px;line-height:1.7;color:var(--text-dim);">--</div>
+          </div>
+          <!-- 6. 公司治理与合规 -->
+          <div class="eval-card" id="eval-gov" style="background:var(--bg-soft);border-radius:8px;padding:12px;">
+            <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">📋 公司治理与合规</div>
+            <div id="eval-gov-content" style="font-size:11px;line-height:1.7;color:var(--text-dim);">--</div>
+          </div>
+          <!-- 7. 综合评估与风险 -->
+          <div class="eval-card" id="eval-risk" style="background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(245,158,11,0.06));border-radius:8px;padding:12px;grid-column:span 2;">
+            <div style="font-size:12px;font-weight:600;color:var(--warn);margin-bottom:8px;">⚠️ 综合评估与风险提示</div>
+            <div id="eval-risk-content" style="font-size:11px;line-height:1.7;color:var(--text-dim);">--</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

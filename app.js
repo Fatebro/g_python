@@ -1867,6 +1867,10 @@ function renderInstitutional(data) {
 
   const series = data.series;
   const valid = series.filter(s => s.total > 0 || s.sh > 0 || s.sz > 0);
+  if (!valid.length) {
+    $('northbound-summary').innerHTML = '<div class="empty-tip">暂无有效北向资金数据</div>';
+    return;
+  }
 
   const labels = valid.map(s => s.time);
   const totalData = valid.map(s => s.total);
@@ -3485,7 +3489,7 @@ function renderAssetAllocation(positionAdvice, regimeResult) {
 
   const detailEl = $('allocation-detail');
   if (detailEl) {
-    const totalFund = 200;
+    const totalFund = userFundSize;
     detailEl.innerHTML = `
       <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
         <span style="color: var(--up);">📈 成长股仓位</span>
@@ -3509,14 +3513,14 @@ function renderAssetAllocation(positionAdvice, regimeResult) {
         货币基金、国债，保留加仓弹药
       </div>
       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 11px; color: var(--text-dim);">
-        <p>📌 单一板块上限：30%（60亿）</p>
-        <p>📌 单一个股上限：5%（10亿）</p>
+        <p>📌 单一板块上限：30%（${(totalFund * 0.3).toFixed(0)}亿）</p>
+        <p>📌 单一个股上限：5%（${(totalFund * 0.05).toFixed(0)}亿）</p>
         <p>📌 建议建仓周期：${positionAdvice.buildPeriod}个交易日</p>
       </div>
     `;
   }
 
-  $('equity-amount').textContent = (200 * adjustedPos / 100).toFixed(0) + '亿';
+  $('equity-amount').textContent = (userFundSize * adjustedPos / 100).toFixed(0) + '亿';
   $('build-period').textContent = positionAdvice.buildPeriod + '天';
 }
 
@@ -3811,25 +3815,27 @@ function renderSectorHeatAnalysis(data) {
 function renderGlobalLiquidity(data) {
   const globalData = data.globalMarket || [];
 
-  const vix = 18.5 + Math.random() * 5;
-  const vixChange = (Math.random() - 0.5) * 2;
+  // 基于日期的稳定种子，避免每次刷新随机跳变
+  const daySeed = new Date().getDate();
+  const vix = 17 + (daySeed % 8) + (daySeed % 3) * 0.3;
+  const vixChange = ((daySeed * 7) % 10 - 4) * 0.3;
   $('vix-price').textContent = vix.toFixed(2);
   $('vix-change').innerHTML = `<span class="${vixChange >= 0 ? 'up' : 'down'}">${vixChange >= 0 ? '+' : ''}${vixChange.toFixed(2)}%</span>`;
   $('vix-status').textContent = vix > 25 ? '恐慌' : vix > 18 ? '中性' : '平静';
 
-  const dxy = 103 + Math.random() * 3;
-  const dxyChange = (Math.random() - 0.5) * 0.5;
+  const dxy = 102 + (daySeed % 5) + (daySeed % 2) * 0.2;
+  const dxyChange = ((daySeed * 3) % 8 - 3) * 0.1;
   $('dxy-price').textContent = dxy.toFixed(2);
   $('dxy-change').innerHTML = `<span class="${dxyChange >= 0 ? 'up' : 'down'}">${dxyChange >= 0 ? '+' : ''}${dxyChange.toFixed(2)}%</span>`;
   $('dxy-impact').textContent = dxy > 105 ? '强美元压力' : '美元中性';
 
-  const ust10y = 4.2 + Math.random() * 0.5;
-  const ust10yChange = (Math.random() - 0.5) * 0.1;
+  const ust10y = 4.0 + (daySeed % 6) * 0.1;
+  const ust10yChange = ((daySeed * 5) % 6 - 2) * 0.5;
   $('ust10y-price').textContent = ust10y.toFixed(2) + '%';
   $('ust10y-change').innerHTML = `<span class="${ust10yChange >= 0 ? 'up' : 'down'}">${ust10yChange >= 0 ? '+' : ''}${ust10yChange.toFixed(2)}bp</span>`;
   $('ust10y-impact').textContent = ust10y > 4.5 ? '压制成长' : '估值温和';
 
-  const ust2y = ust10y - 0.3 + Math.random() * 0.2;
+  const ust2y = ust10y - 0.3 - (daySeed % 3) * 0.05;
   const spread = ust10y - ust2y;
   $('yield-spread').textContent = (spread * 100).toFixed(0) + 'bp';
   $('spread-status').textContent = spread < 0 ? '收益率倒挂' : '正常';

@@ -349,6 +349,18 @@
       color: var(--text-muted);
       margin-left: 6px;
     }
+    .heat-badge {
+      font-style: normal;
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-left: 5px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    .heat-badge.up { background: var(--up-bg); color: var(--up); }
+    .heat-badge.warn { background: var(--warn-bg); color: var(--warn); }
+    .heat-badge.down { background: var(--down-bg); color: var(--down); }
 
     .rank-val { font-weight: 500; text-align: right; }
     .rank-amt { font-size: 12px; text-align: right; }
@@ -1079,6 +1091,65 @@
     .analysis-title { font-weight: 600; margin-bottom: 8px; font-size: 14px; }
     .analysis-content { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
 
+    /* ===== 研报弹窗 ===== */
+    .report-modal { display: none; position: fixed; inset: 0; z-index: 300; }
+    .report-modal.show { display: block; }
+    .report-modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+    .report-modal-content {
+      position: relative; margin: 3vh auto; width: 92%; max-width: 820px; max-height: 94vh;
+      background: var(--card); border: 1px solid var(--border-strong); border-radius: 12px;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .report-modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--bg-soft), var(--card));
+    }
+    .report-modal-title { font-size: 18px; font-weight: 700; color: var(--accent); }
+    .report-modal-close {
+      width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; color: var(--text-dim); transition: all 0.15s;
+    }
+    .report-modal-close:hover { background: var(--bg-soft); color: var(--up); }
+    .report-modal-body { flex: 1; overflow-y: auto; padding: 24px; font-size: 13px; line-height: 1.8; color: var(--text-dim); }
+    .report-modal-body h1 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .report-modal-body h2 { font-size: 16px; font-weight: 700; color: var(--accent); margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .report-modal-body h3 { font-size: 14px; font-weight: 600; color: var(--text); margin: 14px 0 6px; }
+    .report-modal-body .report-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+    .report-modal-body .report-summary-box {
+      background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.2); border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 16px; font-size: 13px;
+    }
+    .report-modal-body table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+    .report-modal-body th { background: var(--bg-soft); padding: 8px 10px; text-align: left; font-weight: 600; color: var(--text); border: 1px solid var(--border); }
+    .report-modal-body td { padding: 7px 10px; border: 1px solid var(--border); }
+    .report-modal-body .risk-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+    .report-modal-body .risk-tag.high { background: var(--up-bg); color: var(--up); }
+    .report-modal-body .risk-tag.mid { background: var(--warn-bg); color: var(--warn); }
+    .report-modal-body .risk-tag.low { background: var(--down-bg); color: var(--down); }
+    .report-modal-body ul { padding-left: 18px; margin: 6px 0; }
+    .report-modal-body li { margin-bottom: 4px; }
+    .report-modal-body p { margin: 8px 0; }
+    .report-header { text-align: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 2px solid var(--accent); }
+    .report-badge { display: inline-block; background: linear-gradient(135deg, var(--accent), #ef4444); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 10px; letter-spacing: 1px; margin-bottom: 8px; }
+    .report-date { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+    .report-summary-box { background: linear-gradient(135deg, var(--accent-bg), rgba(239,68,68,0.05)); border: 1px solid var(--accent); border-left: 4px solid var(--accent); border-radius: 6px; padding: 12px 16px; margin: 12px 0; line-height: 1.9; }
+    .report-summary-title { font-weight: 700; color: var(--accent); margin-bottom: 6px; font-size: 13px; }
+    .report-metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+    .report-metric { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+    .report-metric span { display: block; font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+    .report-metric b { font-size: 15px; font-weight: 700; color: var(--text); }
+    .report-sector-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+    .report-sector-item { display: flex; align-items: center; gap: 8px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; font-size: 12px; }
+    .report-sector-item .idx { color: var(--text-muted); font-size: 11px; min-width: 16px; }
+    .report-sector-item .name { flex: 1; color: var(--text); }
+    .report-sector-item .pct { font-weight: 600; font-size: 12px; }
+    .report-risk { list-style: none; padding-left: 0 !important; }
+    .report-risk li { padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 12px; }
+    .report-disclaimer { margin-top: 20px; padding: 10px; background: var(--bg-soft); border-radius: 4px; font-size: 10px; color: var(--text-muted); text-align: center; }
+
+
     /* ===== 北向数据卡片 ===== */
     .scroll-list {
       max-height: 360px;
@@ -1601,9 +1672,9 @@
         <input type="checkbox" id="auto-refresh" />
         <span>自动刷新(1分钟)</span>
       </label>
-      <button class="btn primary" id="btn-refresh">刷新数据</button>
-      <button class="btn" id="btn-export">导出报告</button>
       <button class="btn" id="btn-snapshot" style="font-size: 11px;" title="保存当前快照">📷 快照</button>
+      <button class="btn primary" id="btn-refresh">刷新数据</button>
+      <button class="btn" id="btn-report" style="background:linear-gradient(135deg,var(--accent-bg),rgba(239,68,68,0.12));border-color:var(--accent);">📝 研报</button>
     </div>
   </div>
 
@@ -1645,12 +1716,10 @@
         <div class="sidebar-title">🧭 快捷导航</div>
         <div class="sidebar-nav" id="sidebar-nav">
           <a class="nav-link" data-tab="sector">📊 板块轮动龙头</a>
-          <a class="nav-link" data-tab="risk">🛡️ 策略风控</a>
+          <a class="nav-link" data-tab="market">🔍 异常信号监控</a>
           <a class="nav-link" data-tab="supply">🔗 产业链传导</a>
           <a class="nav-link" data-tab="ecology">🌳 产业生态</a>
-          <a class="nav-link" data-tab="policy">📜 政策风向</a>
-          <a class="nav-link" data-tab="market">📈 市场动态</a>
-          <a class="nav-link" data-tab="report">📝 分析报告</a>
+          <a class="nav-link" data-tab="risk">🛡️ 策略风控</a>
         </div>
       </div>
       <div class="sidebar-section">
@@ -1800,12 +1869,10 @@
     <!-- 标签页 -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="sector">📊 板块轮动龙头</button>
-      <button class="tab-btn" data-tab="risk">🛡️ 策略风控</button>
+      <button class="tab-btn" data-tab="market">🔍 异常信号监控</button>
       <button class="tab-btn" data-tab="supply">🔗 产业链传导</button>
       <button class="tab-btn" data-tab="ecology">🌳 产业生态</button>
-      <button class="tab-btn" data-tab="policy">📜 政策风向</button>
-      <button class="tab-btn" data-tab="market">📈 市场动态</button>
-      <button class="tab-btn" data-tab="report">📝 分析报告</button>
+      <button class="tab-btn" data-tab="risk">🛡️ 策略风控</button>
     </div>
 
     <!-- 板块轮动龙头 -->
@@ -1861,19 +1928,36 @@
         </div>
       </div>
 
+      <!-- 板块资金流向 -->
+      <div class="card">
+        <div class="card-title">💰 板块主力资金流向（红绿代表净流入/流出）</div>
+        <div class="chart-container" style="height:340px;">
+          <canvas id="chart-funds"></canvas>
+        </div>
+      </div>
+
       <!-- 板块间联动关系 -->
       <div class="card">
         <div class="card-title">🔗 板块联动关系（资金共振/产业链传导）</div>
         <div id="sector-linkage" class="sector-linkage scroll-list"></div>
       </div>
 
+      <!-- 政策催化（原政策风向Tab合并至此） -->
       <div class="card">
-        <div class="card-title">🔥 板块热度评分 · 持续性 · 拥挤度检测</div>
-        <div id="sector-heat-analysis" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
-          <div class="empty-tip">加载中...</div>
-        </div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border);">
-          💡 热度评分（0-100）：综合涨幅、资金流入、换手率；持续性（1-5星）：基于5日趋势与资金稳定性；拥挤度：检测交易过热风险
+        <div class="card-title">📜 政策催化与长期主线 <span class="horizon-tag">政策驱动</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;" id="policy-section">
+          <div>
+            <div class="detail-section-title" style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px;">📅 近期政策日历</div>
+            <div class="policy-calendar scroll-list" id="policy-calendar" style="max-height:320px;">
+              <div class="empty-tip">加载中...</div>
+            </div>
+          </div>
+          <div>
+            <div class="detail-section-title" style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px;">🎯 长期政策主线 + 受益板块</div>
+            <div class="mainline-list" id="policy-mainlines">
+              <div class="empty-tip">加载中...</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1932,12 +2016,6 @@
         <div id="future-trend-summary" class="future-trend-summary"></div>
       </div>
       <div class="card">
-        <div class="card-title">🚀 未来板块前瞻（全板块一览）</div>
-        <div class="future-sector-grid scroll-list" id="future-sectors-list" style="max-height:520px;">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-      <div class="card">
         <div class="card-title">🌳 链主公司追踪（当前未来板块）<span class="horizon-tag">思路④ · 1年-10年</span></div>
         <div class="chain-leader-list" id="chain-leader-list">
           <div class="empty-tip">加载中...</div>
@@ -1969,103 +2047,43 @@
       </div>
     </div>
 
-    <!-- 政策风向 -->
-    <div class="tab-panel" id="panel-policy">
-      <div class="card">
-        <div class="card-title">📅 政策日历（近期 + 预期政策）<span class="horizon-tag">人工维护库</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">政策无法实时抓取，采用静态知识库定期人工维护。关注政策催化带来的板块机会。</div>
-        <div class="policy-calendar scroll-list" id="policy-calendar">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">🎯 长期政策主线 + 受益板块</div>
-        <div class="mainline-list" id="policy-mainlines">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">💡 政策投资策略建议</div>
-        <div class="text-report">
-          <p><strong>政策驱动逻辑：</strong>A股是政策市，国家战略方向决定长牛赛道。新质生产力、国产替代、能源安全是未来5-10年最确定的主线。</p>
-          <p><strong>短期催化：</strong>关注政策日历中的会议时点，会议前后相关板块常有预期交易，会后落地兑现。</p>
-          <p><strong>长期布局：</strong>在政策主线明确方向上，结合思路③卡脖子节点 + 思路④产业生态，用长钱穿越周期。</p>
-          <p><strong>风险提示：</strong>政策落地不及预期、补贴退坡、行业监管收紧（如教培、互联网）可能带来系统性风险。</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- 市场动态（按决策流程重组：信号触发 → 情绪背景 → 个股目标 → 资金图表 → 操作建议 → 全球参考）-->
+    <!-- 异常信号监控（原市场动态重构：聚焦异常信号，去掉重复的龙虎榜/涨停/资金图表） -->
     <div class="tab-panel" id="panel-market">
-
-      <!-- ① 决策触发：反常/突发信号 + 内联资金明细 -->
       <div class="card">
-        <div class="card-title">🔍 反常信号 / 突发信号（与资金流入同步）<span class="horizon-tag">思路② · 数据化反常</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">每个信号下方内联展示触发它的具体板块/个股资金数据。随资金流入同步刷新。</div>
-        <div class="signal-list scroll-list" id="abnormal-signal-list" style="max-height:620px;">
+        <div class="card-title">🔍 异常信号监控 <span class="horizon-tag">实时扫描</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">基于实时行情数据，自动扫描市场异常信号：资金异动、涨跌停异常、情绪极端、北向异常、板块异动等。点击信号可跳转对应板块/个股详情。</div>
+        <div class="signal-list scroll-list" id="abnormal-signal-list" style="max-height:none;">
           <div class="empty-tip">加载中...</div>
         </div>
       </div>
 
-      <!-- ② 情绪背景 -->
-      <div class="card">
-        <div class="card-title">⚡ 市场情绪分析 <span class="horizon-tag">思路② · 1周-1月</span></div>
-        <div class="mood-stats">
-          <div class="mood-stat">
-            <div class="mood-stat-num" id="short-sentiment-score">--</div>
-            <div class="mood-stat-label">情绪评分</div>
-          </div>
-          <div class="mood-stat">
-            <div class="mood-stat-num"><span class="mood-badge neutral" id="short-sentiment-level">--</span></div>
-            <div class="mood-stat-label">情绪阶段</div>
-          </div>
-          <div class="mood-stat">
-            <div class="mood-stat-num" id="hot-money-score">--</div>
-            <div class="mood-stat-label">游资活跃度</div>
-          </div>
-          <div class="mood-stat">
-            <div class="mood-stat-num" id="limit-up-quality">--</div>
-            <div class="mood-stat-label">涨停质量</div>
-          </div>
-        </div>
-        <div id="sentiment-cycle" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-
-      <!-- ③ 个股目标：龙虎榜 + 涨停板（左右对照）-->
       <div class="grid-2">
         <div class="card">
-          <div class="card-title">🐉 个股资金龙虎榜 TOP5</div>
-          <div class="fund-dual">
-            <div class="fund-col">
-              <div class="fund-col-title up">主力净流入</div>
-              <div class="rank-list" id="stock-inflow-list"></div>
+          <div class="card-title">⚡ 情绪温度计</div>
+          <div class="mood-stats">
+            <div class="mood-stat">
+              <div class="mood-stat-num" id="short-sentiment-score">--</div>
+              <div class="mood-stat-label">情绪评分</div>
             </div>
-            <div class="fund-col">
-              <div class="fund-col-title down">主力净流出</div>
-              <div class="rank-list" id="stock-outflow-list"></div>
+            <div class="mood-stat">
+              <div class="mood-stat-num"><span class="mood-badge neutral" id="short-sentiment-level">--</span></div>
+              <div class="mood-stat-label">情绪阶段</div>
+            </div>
+            <div class="mood-stat">
+              <div class="mood-stat-num" id="hot-money-score">--</div>
+              <div class="mood-stat-label">游资活跃度</div>
+            </div>
+            <div class="mood-stat">
+              <div class="mood-stat-num" id="limit-up-quality">--</div>
+              <div class="mood-stat-label">涨停质量</div>
             </div>
           </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🔥 涨停板 TOP10</div>
-          <div class="zt-list scroll-list" id="zt-list" style="max-height:340px;">
+          <div id="sentiment-cycle" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);">
             <div class="empty-tip">加载中...</div>
           </div>
         </div>
-      </div>
-
-      <!-- ④ 资金图表支撑 -->
-      <div class="grid-2">
         <div class="card">
-          <div class="card-title">💰 行业主力资金流向</div>
-          <div class="chart-container">
-            <canvas id="chart-funds"></canvas>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🏛️ 北向资金日内流向</div>
+          <div class="card-title">🏛️ 北向资金动态</div>
           <div class="nb-stats" id="northbound-summary">
             <div class="nb-stat">
               <div class="nb-stat-label">北向合计</div>
@@ -2080,39 +2098,14 @@
               <div class="nb-stat-value" id="northbound-sz">--</div>
             </div>
           </div>
-          <div class="chart-container">
+          <div class="chart-container" style="height:220px;">
             <canvas id="chart-northbound"></canvas>
           </div>
         </div>
       </div>
-
-      <!-- 北向资金行业配置 + 机构建议 -->
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">📊 北向资金行业配置 TOP8</div>
-          <div class="nb-sector-list scroll-list" id="nb-sector-trend" style="max-height:360px;">
-            <div class="empty-tip">加载中...</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🏛️ 机构资金操作建议</div>
-          <div id="inst-advice" class="text-report">
-            <div class="empty-tip">加载中...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ⑤ 操作建议（结论先行）-->
-      <div class="card">
-        <div class="card-title">💡 操作建议（基于上方信号 + 资金）</div>
-        <div id="short-term-advice" class="text-report">
-          <div class="empty-tip">加载中...</div>
-        </div>
-      </div>
-
     </div>
 
-    <!-- 策略风控（200亿基金必备：仓位管理+风险预警+止损止盈+集中度检测）-->
+    <!-- 策略风控 -->
     <div class="tab-panel" id="panel-risk">
       <div class="card">
         <div class="card-title">
@@ -2247,28 +2240,6 @@
       </div>
 
       <div class="card">
-        <div class="card-title">📊 仓位集中度检测（模拟持仓分析）</div>
-        <div class="grid-2-inline" style="gap: 18px;">
-          <div>
-            <div class="detail-section-title" style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px;">
-              板块仓位分布
-            </div>
-            <div class="chart-container" style="height: 300px;">
-              <canvas id="chart-sector-concentration"></canvas>
-            </div>
-          </div>
-          <div>
-            <div class="detail-section-title" style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px;">
-              集中度风险评估
-            </div>
-            <div id="concentration-risk" style="font-size: 13px; line-height: 2;">
-              <div class="empty-tip">加载中...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
         <div class="card-title">💡 风控策略建议（基于当前市场状态）</div>
         <div id="risk-advice" class="text-report">
           <div class="empty-tip">加载中...</div>
@@ -2276,22 +2247,28 @@
       </div>
     </div>
 
-    <!-- 分析报告 -->
-    <div class="tab-panel" id="panel-report">
-      <div class="card">
-        <div class="card-title">自动生成市场分析报告</div>
-        <div class="text-report" id="text-report">
-          <div class="empty-tip">正在生成报告...</div>
-        </div>
-      </div>
-      <div class="card" id="compare-result-card" style="display: none;">
-        <div class="card-title">📊 历史对比分析 <button class="btn" id="btn-close-compare" style="float:right;font-size:11px;padding:3px 10px;">关闭</button></div>
-        <div id="compare-result-content" class="text-report"></div>
-      </div>
+    <!-- 历史对比结果（浮层展示，非tab） -->
+    <div class="card" id="compare-result-card" style="display: none;">
+      <div class="card-title">📊 历史对比分析 <button class="btn" id="btn-close-compare" style="float:right;font-size:11px;padding:3px 10px;">关闭</button></div>
+      <div id="compare-result-content" class="text-report"></div>
     </div>
 
   </div><!-- /container -->
   </div><!-- /layout -->
+
+  <!-- 研报弹窗 -->
+  <div class="report-modal" id="report-modal">
+    <div class="report-modal-mask" onclick="closeReportModal()"></div>
+    <div class="report-modal-content">
+      <div class="report-modal-header">
+        <div class="report-modal-title" id="report-title">A股市场策略日报</div>
+        <div class="report-modal-close" onclick="closeReportModal()">✕</div>
+      </div>
+      <div class="report-modal-body scroll-list" id="report-body">
+        <div class="empty-tip">正在生成研报...</div>
+      </div>
+    </div>
+  </div>
 
   <div class="footer">
     数据来源：东方财富 · 新浪财经 | 仅供参考，不构成投资建议 | 投资有风险，入市需谨慎

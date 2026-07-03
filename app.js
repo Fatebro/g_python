@@ -671,7 +671,20 @@ function renderSectorRotation(data) {
     }
   });
 
-  // 领涨领跌完整列表（可点击 + 可滑动）
+  // 领涨领跌完整列表（可点击 + 可滑动，附带热度/资金小标签）
+  const sectorFlow = (data && data.sectorFundFlow) ? data.sectorFundFlow : [];
+  const flowMap = {};
+  sectorFlow.forEach(f => { flowMap[f.name] = f; });
+
+  function sectorHeatBadge(s) {
+    const flow = flowMap[s.name];
+    const heat = calculateSectorHeat(s, flow);
+    if (heat.heatScore < 70) return '';
+    const crowdTag = heat.crowdLevel === '危险' ? '🔥过热' : heat.crowdLevel === '警戒' ? '⚠️拥挤' : '';
+    const crowdClass = heat.crowdClass === 'up' ? 'up' : heat.crowdClass === 'warn' ? 'warn' : 'down';
+    return crowdTag ? `<em class="heat-badge ${crowdClass}">${crowdTag}</em>` : '';
+  }
+
   const sortedAll = [...sectorData].sort((a, b) => b.changePct - a.changePct);
   const topList = sortedAll.slice(0, 10);
   const botList = sortedAll.slice(-10).reverse();
@@ -679,14 +692,14 @@ function renderSectorRotation(data) {
   $('sector-top-list').innerHTML = topList.map((s, i) =>
     `<div class="rank-item clickable${currentSelectedSector === s.name ? ' selected' : ''}" data-sector="${s.name}">
       <span class="rank-no up">${i + 1}</span>
-      <span class="rank-name">${s.name}</span>
+      <span class="rank-name">${s.name}${sectorHeatBadge(s)}</span>
       <span class="rank-val up">${fmtPct(s.changePct)}</span>
     </div>`
   ).join('');
   $('sector-bottom-list').innerHTML = botList.map((s, i) =>
     `<div class="rank-item clickable${currentSelectedSector === s.name ? ' selected' : ''}" data-sector="${s.name}">
       <span class="rank-no down">${i + 1}</span>
-      <span class="rank-name">${s.name}</span>
+      <span class="rank-name">${s.name}${sectorHeatBadge(s)}</span>
       <span class="rank-val down">${fmtPct(s.changePct)}</span>
     </div>`
   ).join('');
@@ -769,19 +782,20 @@ function renderSectorDetail(sectorName) {
   // 5日资金趋势折线图 + 横向对比
   $('detail-fund-trend').innerHTML = `
     <div style="margin-bottom: 12px;">
-      <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">📈 近5日主力资金趋势</div>
-      <canvas id="detail-fund-chart" height="110"></canvas>
+      <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px;">📈 近5日主力资金趋势（基于当日资金估算）</div>
+      <div style="position:relative; height:140px;"><canvas id="detail-fund-chart"></canvas></div>
     </div>
     <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">🏢 相关板块资金对比</div>
     ${fundTrendHtml}
   `;
-  // 初始化资金趋势图表
+  // 初始化资金趋势图表（先销毁旧实例防止内存泄漏）
   setTimeout(() => {
     const chartEl = document.getElementById('detail-fund-chart');
     if (chartEl && target) {
+      if (charts.detailFund) charts.detailFund.destroy();
       const ctx = chartEl.getContext('2d');
       const isPos = trendData[4] >= 0;
-      new Chart(ctx, {
+      charts.detailFund = new Chart(ctx, {
         type: 'line',
         data: {
           labels: days,
@@ -821,7 +835,7 @@ function renderSectorDetail(sectorName) {
         }
       });
     }
-  }, 50);
+  }, 100);
 
   // 2) 龙头股（从个股资金流入匹配，匹配不足时用全市场活跃股兜底）
   const stockData = d.stockFundInflow || [];
@@ -1349,8 +1363,8 @@ const CHAIN_DETAIL = {
       { industry: 'AI光模块', name: '中际旭创', code: '300308', marketCap: '1.5万亿', revenue: '382亿', growth: '+192%', status: '链主' }
     ],
     bottlenecks: [
-      { title: '光模块/CPO', type: '设备', severity: '高', desc: 'AI数据中心高速互联核心，800G/1.6T需求爆发，产能扩张周期6-9个月，是AI算力链最窄环节。海外巨头占比约60%，国内厂商加速替代。', impact: '算力基建放量直接受益，业绩确定性最强', stocks: '中际旭创、新易盛、天孚通信、光迅科技' },
-      { title: '光芯片', type: '材料/芯片', severity: '极高', desc: '25G以上高速光芯片被海外（Broadcom/II-VI）垄断，国产率不足10%，是光模块上游最卡脖子环节。', impact: '国产替代空间巨大，突破即业绩爆发', stocks: '源杰科技、长光华芯、光迅科技' }
+      { title: '光模块/CPO', type: '核心器件', severity: '高', desc: 'AI数据中心高速互联核心，800G/1.6T需求爆发，产能扩张周期6-9个月，是AI算力链最窄环节。海外巨头占比约60%，国内厂商加速替代。', impact: '算力基建放量直接受益，业绩确定性最强', stocks: '中际旭创、新易盛、天孚通信、光迅科技' },
+      { title: '光芯片', type: '关键芯片', severity: '极高', desc: '25G以上高速光芯片被海外（Broadcom/II-VI）垄断，国产率不足10%，是光模块上游最卡脖子环节。', impact: '国产替代空间巨大，突破即业绩爆发', stocks: '源杰科技、长光华芯、光迅科技' }
     ],
     investments: [
       { leader: '中际旭创', direction: '光芯片 / 光器件', targets: ['源杰科技', '光迅科技', '天孚通信'], note: '订单溢出至上游光芯片与光器件供应商，需求传导确定性高。' }
@@ -1373,9 +1387,9 @@ const CHAIN_DETAIL = {
       { industry: '光伏', name: '隆基绿能', code: '601012', marketCap: '3000亿', revenue: '1500亿', growth: '+30%', status: '链主' }
     ],
     bottlenecks: [
-      { title: '锂矿/硅料', type: '材料', severity: '高', desc: '上游核心资源，锂矿供给弹性约2-3年，硅料约6-12个月，价格波动直接传导中下游利润，是新能源链关键瓶颈。', impact: '价格企稳时中下游利润空间打开，周期反转弹性大', stocks: '赣锋锂业、天齐锂业、通威股份、隆基绿能' },
-      { title: '钴矿', type: '材料', severity: '中', desc: '钴资源高度依赖刚果(金)，供给集中度CR5超60%，价格波动大，是三元电池关键瓶颈。磷酸铁锂替代趋势下影响减弱。', impact: '供给扰动时脉冲行情，长期被替代风险需警惕', stocks: '华友钴业、洛阳钼业、寒锐钴业' },
-      { title: '高端隔膜设备', type: '设备', severity: '高', desc: '高端湿法隔膜核心设备被海外（日本制钢所/德国布鲁克纳）垄断，国产替代加速中。', impact: '国产设备突破带来降本空间，设备厂商业绩弹性大', stocks: '星源材质、恩捷股份、先导智能' }
+      { title: '锂矿/硅料', type: '上游资源', severity: '高', desc: '上游核心资源，锂矿供给弹性约2-3年，硅料约6-12个月，价格波动直接传导中下游利润，是新能源链关键瓶颈。', impact: '价格企稳时中下游利润空间打开，周期反转弹性大', stocks: '赣锋锂业、天齐锂业、通威股份、隆基绿能' },
+      { title: '钴矿', type: '上游资源', severity: '中', desc: '钴资源高度依赖刚果(金)，供给集中度CR5超60%，价格波动大，是三元电池关键瓶颈。磷酸铁锂替代趋势下影响减弱。', impact: '供给扰动时脉冲行情，长期被替代风险需警惕', stocks: '华友钴业、洛阳钼业、寒锐钴业' },
+      { title: '高端隔膜设备', type: '核心设备', severity: '高', desc: '高端湿法隔膜核心设备被海外（日本制钢所/德国布鲁克纳）垄断，国产替代加速中。', impact: '国产设备突破带来降本空间，设备厂商业绩弹性大', stocks: '星源材质、恩捷股份、先导智能' }
     ],
     investments: [
       { leader: '宁德时代', direction: '正极 / 电解液 / 电池', targets: ['容百科技', '当升科技', '亿纬锂能', '欣旺达'], note: '产能扩张带动正极材料、二线电池厂订单，二线供应商弹性更大。' },
@@ -1396,9 +1410,9 @@ const CHAIN_DETAIL = {
       { industry: '半导体设备', name: '北方华创', code: '002371', marketCap: '5000亿', revenue: '300亿', growth: '+70%', status: '链主' }
     ],
     bottlenecks: [
-      { title: '半导体材料', type: '材料', severity: '极高', desc: '光刻胶（ArF/EUV）、高纯靶材、电子特气被日本/美国垄断，国产率普遍低于15%，是半导体链卡脖子最严重环节。', impact: '国产替代空间巨大，每突破一个细分都是从0到1', stocks: '南大光电、江化微、安集科技、雅克科技' },
-      { title: '高端光刻机', type: '设备', severity: '极高', desc: 'ASML垄断EUV光刻机，DUV也受出口管制，国产光刻机仍在28nm攻坚，是半导体链最大瓶颈。', impact: '设备突破直接决定制造能力上限，战略意义重大', stocks: '上海微电子、北方华创、中微公司' },
-      { title: '刻蚀设备', type: '设备', severity: '高', desc: '中微公司5nm刻蚀已进入台积电供应链，但高端介质刻蚀仍被应用材料主导，国产替代加速。', impact: '国产刻蚀设备市占率快速提升，业绩弹性大', stocks: '中微公司、北方华创、芯源微' }
+      { title: '半导体材料', type: '核心材料', severity: '极高', desc: '光刻胶（ArF/EUV）、高纯靶材、电子特气被日本/美国垄断，国产率普遍低于15%，是半导体链卡脖子最严重环节。', impact: '国产替代空间巨大，每突破一个细分都是从0到1', stocks: '南大光电、江化微、安集科技、雅克科技' },
+      { title: '高端光刻机', type: '核心设备', severity: '极高', desc: 'ASML垄断EUV光刻机，DUV也受出口管制，国产光刻机仍在28nm攻坚，是半导体链最大瓶颈。', impact: '设备突破直接决定制造能力上限，战略意义重大', stocks: '上海微电子、北方华创、中微公司' },
+      { title: '刻蚀设备', type: '核心设备', severity: '高', desc: '中微公司5nm刻蚀已进入台积电供应链，但高端介质刻蚀仍被应用材料主导，国产替代加速。', impact: '国产刻蚀设备市占率快速提升，业绩弹性大', stocks: '中微公司、北方华创、芯源微' }
     ],
     investments: [
       { leader: '北方华创', direction: '薄膜 / 刻蚀 / 清洗', targets: ['拓荆科技', '中微公司', '盛美上海'], note: '国产设备协同放量，订单向薄膜沉积、刻蚀、清洗环节扩散。' },
@@ -1419,8 +1433,8 @@ const CHAIN_DETAIL = {
       { industry: '消费电子', name: '立讯精密', code: '002475', marketCap: '2000亿', revenue: '2000亿', growth: '+20%', status: '链主' }
     ],
     bottlenecks: [
-      { title: 'SoC/射频芯片', type: '芯片', severity: '极高', desc: '高端手机SoC、射频前端芯片被高通/联发科/博通垄断，国产中高端手机SoC仍在追赶，是消费电子链最卡脖子环节。', impact: '国产替代从0到1空间巨大，突破即业绩拐点', stocks: '韦尔股份、卓胜微、兆易创新' },
-      { title: '高端光学镜头', type: '材料/设备', severity: '中', desc: '高端手机镜头、车载镜头被大立光/舜宇主导，高端传感器被索尼垄断，国产在中低端已突破。', impact: '光学升级持续，国产替代逐步推进', stocks: '舜宇光学、欧菲光、韦尔股份' }
+      { title: 'SoC/射频芯片', type: '关键芯片', severity: '极高', desc: '高端手机SoC、射频前端芯片被高通/联发科/博通垄断，国产中高端手机SoC仍在追赶，是消费电子链最卡脖子环节。', impact: '国产替代从0到1空间巨大，突破即业绩拐点', stocks: '韦尔股份、卓胜微、兆易创新' },
+      { title: '高端光学镜头', type: '核心器件', severity: '中', desc: '高端手机镜头、车载镜头被大立光/舜宇主导，高端传感器被索尼垄断，国产在中低端已突破。', impact: '光学升级持续，国产替代逐步推进', stocks: '舜宇光学、欧菲光、韦尔股份' }
     ],
     investments: [
       { leader: '立讯精密', direction: '组装 / 连接器 / 模组', targets: ['领益智造', '蓝思科技', '舜宇光学'], note: '果链链主带动消费电子精密结构件、光学模组订单增长。' }
@@ -1441,8 +1455,8 @@ const CHAIN_DETAIL = {
       { industry: '医疗器械', name: '迈瑞医疗', code: '300760', marketCap: '3500亿', revenue: '300亿', growth: '+20%', status: '链主' }
     ],
     bottlenecks: [
-      { title: '高端医疗器械', type: '设备', severity: '高', desc: 'CT/MRI/DSA/手术机器人被GE、西门子、飞利浦垄断，国产高端化是医药链最难的环节，国产率不足20%。', impact: '进口替代空间大，政策鼓励国产设备采购', stocks: '联影医疗、迈瑞医疗、开立医疗、微创医疗' },
-      { title: '上游耗材/试剂', type: '材料', severity: '极高', desc: '培养基、一次性生物反应器、色谱填料、高端试剂被海外垄断，是创新药/CXO上游最卡脖子环节，国产率不足10%。', impact: '国产替代从0到1，CXO订单回暖同步受益', stocks: '奥浦迈、多宁生物、纳微科技、义翘神州' }
+      { title: '高端医疗器械', type: '核心设备', severity: '高', desc: 'CT/MRI/DSA/手术机器人被GE、西门子、飞利浦垄断，国产高端化是医药链最难的环节，国产率不足20%。', impact: '进口替代空间大，政策鼓励国产设备采购', stocks: '联影医疗、迈瑞医疗、开立医疗、微创医疗' },
+      { title: '上游耗材/试剂', type: '核心材料', severity: '极高', desc: '培养基、一次性生物反应器、色谱填料、高端试剂被海外垄断，是创新药/CXO上游最卡脖子环节，国产率不足10%。', impact: '国产替代从0到1，CXO订单回暖同步受益', stocks: '奥浦迈、多宁生物、纳微科技、义翘神州' }
     ],
     investments: [
       { leader: '恒瑞医药', direction: 'CXO / 原料药', targets: ['药明康德', '凯莱英', '九洲药业'], note: '创新药研发带动CXO订单，API+CXO协同放量。' },
@@ -1463,9 +1477,9 @@ const CHAIN_DETAIL = {
       { industry: '航空发动机', name: '航发动力', code: '600893', marketCap: '2000亿', revenue: '300亿', growth: '+25%', status: '链主' }
     ],
     bottlenecks: [
-      { title: '航空发动机', type: '设备', severity: '极高', desc: '军工皇冠明珠，高温合金单晶叶片、涡轮盘制造壁垒极高，国产军用航发仍在追赶，是军工链最大瓶颈。', impact: '装备放量+国产替代双逻辑，确定性最强', stocks: '航发动力、航发控制、抚顺特钢、钢研高纳' },
-      { title: '高温合金', type: '材料', severity: '高', desc: '航空发动机核心材料，被海外（ATI/GE）垄断，国产化率不足30%，是军工材料最大瓶颈。', impact: '材料先行，航发放量最先受益上游材料', stocks: '抚顺特钢、钢研高纳、图南股份' },
-      { title: '高端数控机床', type: '设备', severity: '高', desc: '五轴联动被德日（DMG/马扎克）垄断，是军工/高端制造基础瓶颈，国产替代加速。', impact: '工业母机，政策支持力度大，国产替代空间广阔', stocks: '科德数控、华中数控、纽威数控' }
+      { title: '航空发动机', type: '核心装备', severity: '极高', desc: '军工皇冠明珠，高温合金单晶叶片、涡轮盘制造壁垒极高，国产军用航发仍在追赶，是军工链最大瓶颈。', impact: '装备放量+国产替代双逻辑，确定性最强', stocks: '航发动力、航发控制、抚顺特钢、钢研高纳' },
+      { title: '高温合金', type: '上游材料', severity: '高', desc: '航空发动机核心材料，被海外（ATI/GE）垄断，国产化率不足30%，是军工材料最大瓶颈。', impact: '材料先行，航发放量最先受益上游材料', stocks: '抚顺特钢、钢研高纳、图南股份' },
+      { title: '高端数控机床', type: '核心设备', severity: '高', desc: '五轴联动被德日（DMG/马扎克）垄断，是军工/高端制造基础瓶颈，国产替代加速。', impact: '工业母机，政策支持力度大，国产替代空间广阔', stocks: '科德数控、华中数控、纽威数控' }
     ],
     investments: [
       { leader: '航发动力', direction: '高温合金 / 单晶叶片', targets: ['抚顺特钢', '钢研高纳', '图南股份'], note: '航发链主订单向上游高温合金、单晶叶片企业传导。' }
@@ -1551,21 +1565,27 @@ function renderBottleneckList() {
   const bottlenecks = detail.bottlenecks || [];
   const sevColor = { '极高': 'severity-critical', '高': 'severity-high', '中': 'severity-medium', '低': 'severity-low' };
   const typeClassMap = {
-    '设备': 'type-equipment',
-    '材料': 'type-material',
-    '芯片': 'type-chip',
-    '设计': 'type-design',
-    '材料/芯片': 'type-chip',
-    '材料/设备': 'type-equipment',
+    '上游资源': 'type-material',
+    '上游材料': 'type-material',
+    '核心材料': 'type-material',
+    '核心设备': 'type-equipment',
+    '核心装备': 'type-equipment',
+    '核心器件': 'type-chip',
+    '关键芯片': 'type-chip',
+    '中游制造': 'type-design',
+    '下游应用': 'type-other',
     '综合': 'type-other'
   };
   const typeIconMap = {
-    '设备': '⚙️',
-    '材料': '🧪',
-    '芯片': '💾',
-    '设计': '📐',
-    '材料/芯片': '💾',
-    '材料/设备': '⚙️',
+    '上游资源': '⛏️',
+    '上游材料': '🧪',
+    '核心材料': '🧪',
+    '核心设备': '⚙️',
+    '核心装备': '🏭',
+    '核心器件': '🔌',
+    '关键芯片': '💾',
+    '中游制造': '🏗️',
+    '下游应用': '📱',
     '综合': '🎯'
   };
   $('bottleneck-list').innerHTML = bottlenecks.length ? bottlenecks.map(b => {
@@ -1943,7 +1963,9 @@ function renderFundFlow(data) {
   const values = [...bot8.map(d => d.mainNetInflow / 100000000), ...top8.map(d => d.mainNetInflow / 100000000)];
   const colors = values.map(v => v >= 0 ? 'rgba(239,68,68,0.85)' : 'rgba(34,197,94,0.85)');
 
-  const ctx = $('chart-funds').getContext('2d');
+  const ctxEl = $('chart-funds');
+  if (!ctxEl) return;
+  const ctx = ctxEl.getContext('2d');
   if (charts.funds) charts.funds.destroy();
   charts.funds = new Chart(ctx, {
     type: 'bar',
@@ -3698,85 +3720,6 @@ function renderAssetAllocation(positionAdvice, regimeResult) {
   $('build-period').textContent = positionAdvice.buildPeriod + '天';
 }
 
-function renderSectorConcentration(data) {
-  const sectorFlow = data.sectorFundFlow || [];
-  const topSectors = [...sectorFlow].sort((a, b) => b.mainNetInflow - a.mainNetInflow).slice(0, 6);
-  const totalInflow = topSectors.reduce((s, x) => s + Math.abs(x.mainNetInflow || 0), 0);
-
-  const labels = topSectors.map(s => s.name);
-  const values = topSectors.map(s => Math.round(Math.abs(s.mainNetInflow || 0) / totalInflow * 100));
-  const colors = [
-    'rgba(239,68,68,0.8)', 'rgba(245,158,11,0.8)', 'rgba(34,197,94,0.8)',
-    'rgba(96,165,250,0.8)', 'rgba(34,211,238,0.8)', 'rgba(168,85,247,0.8)'
-  ];
-
-  const ctx = $('chart-sector-concentration').getContext('2d');
-  if (charts.concentration) charts.concentration.destroy();
-  charts.concentration = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels,
-      datasets: [{
-        data: values,
-        backgroundColor: colors,
-        borderColor: 'transparent',
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: { color: COLORS.text, font: { size: 11 }, boxWidth: 10, padding: 8 }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(15,20,29,0.95)',
-          titleColor: '#fff',
-          bodyColor: COLORS.text,
-          callbacks: {
-            label: (item) => `${item.label}: ${item.raw}%`
-          }
-        }
-      }
-    }
-  });
-
-  const top1Share = values[0] || 0;
-  const top3Share = values.slice(0, 3).reduce((s, v) => s + v, 0);
-
-  let riskLevel = '低';
-  let riskClass = 'down';
-  let riskDesc = '板块分布相对均衡，集中度风险可控。';
-
-  if (top1Share > 30 || top3Share > 60) {
-    riskLevel = '高';
-    riskClass = 'up';
-    riskDesc = '资金过度集中于少数板块，一旦市场风格切换可能引发剧烈波动，建议分散配置。';
-  } else if (top1Share > 20 || top3Share > 45) {
-    riskLevel = '中';
-    riskClass = 'warn';
-    riskDesc = '资金有一定集中趋势，关注板块轮动节奏，避免过度追高热门板块。';
-  }
-
-  $('concentration-risk').innerHTML = `
-    <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
-      <span style="color: var(--text-dim);">TOP1板块占比</span>
-      <span style="font-weight: 600;">${top1Share}%</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 8px;">
-      <span style="color: var(--text-dim);">TOP3板块占比</span>
-      <span style="font-weight: 600;">${top3Share}%</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-soft); border-radius: 6px; margin-bottom: 12px;">
-      <span style="color: var(--text-dim);">集中度风险</span>
-      <span style="font-weight: 600; color: var(--${riskClass});">${riskLevel}风险</span>
-    </div>
-    <p style="font-size: 12px; color: var(--text-dim); line-height: 1.6;">${riskDesc}</p>
-  `;
-}
-
 function renderRiskAdvice(data, decisionResult) {
   const { positionAdvice, riskLevel, regimeResult } = decisionResult;
   const lines = [];
@@ -3936,64 +3879,7 @@ function calculateSectorHeat(sector, fundFlow) {
   };
 }
 
-function renderSectorHeatAnalysis(data) {
-  const sectorRank = data.sectorRank || [];
-  const sectorFlow = data.sectorFundFlow || [];
-
-  const topSectors = [...sectorRank].sort((a, b) => b.changePct - a.changePct).slice(0, 8);
-
-  const heatData = topSectors.map(sector => {
-    const flow = sectorFlow.find(s => s.name === sector.name);
-    const heat = calculateSectorHeat(sector, flow);
-    return { ...sector, ...heat, flow: flow?.mainNetInflow || 0 };
-  });
-
-  const heatContainer = $('sector-heat-analysis');
-  heatContainer.innerHTML = heatData.map(s => `
-    <div class="heat-card" data-sector="${s.name}" style="cursor:pointer; background: var(--bg-soft); border-radius: 10px; padding: 14px; border-left: 3px solid ${s.heatScore >= 70 ? 'var(--up)' : s.heatScore >= 40 ? 'var(--warn)' : 'var(--text-muted)'};">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-weight: 600; font-size: 13px;">${s.name}</span>
-        <span style="font-size: ${s.heatScore >= 70 ? '18px' : '14px'}; font-weight: 700; color: ${s.heatScore >= 70 ? 'var(--up)' : s.heatScore >= 40 ? 'var(--warn)' : 'var(--text-dim)'};">${s.heatScore}分</span>
-      </div>
-      <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px;">
-        <span style="color: var(--text-dim);">热度：${'★'.repeat(s.stars)}${'☆'.repeat(5-s.stars)}</span>
-        <span style="color: var(--${s.crowdClass});">拥挤度：${s.crowdLevel}</span>
-      </div>
-      <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
-        <span class="${s.changePct >= 0 ? 'up' : 'down'}">${fmtPct(s.changePct)}</span>
-        <span class="${s.flow >= 0 ? 'up' : 'down'}">${s.flow >= 0 ? '+' : ''}${(s.flow/1e8).toFixed(1)}亿</span>
-      </div>
-      <div style="height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 10px; overflow: hidden;">
-        <div style="height: 100%; width: ${s.heatScore}%; background: ${s.heatScore >= 70 ? 'var(--up)' : s.heatScore >= 40 ? 'var(--warn)' : 'var(--text-muted)'}; border-radius: 2px;"></div>
-      </div>
-      <div style="border-top: 1px dashed var(--border); padding-top: 8px; font-size: 11px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-          <span style="color: var(--text-muted);">流动性：</span>
-          <span style="color: var(--${s.liquidityClass}); font-weight: 600;">${s.liquidityLevel}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-          <span style="color: var(--text-muted);">日均成交：</span>
-          <span style="color: var(--text);">${s.turnoverYi}亿</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="color: var(--text-muted);">可配置规模：</span>
-          <span style="color: var(--accent); font-weight: 600;">${s.investableAmount}亿</span>
-        </div>
-        <p style="margin-top: 6px; color: var(--text-dim); line-height: 1.4; font-size: 10px;">${s.liquidityDesc}</p>
-      </div>
-    </div>
-  `).join('');
-  // 板块热度卡片点击 → 选中板块并展开钻取详情（事件委托）
-  if (!heatContainer.dataset.heatClickBound) {
-    heatContainer.addEventListener('click', (e) => {
-      const card = e.target.closest('.heat-card');
-      if (card && card.dataset.sector) {
-        selectSector(card.dataset.sector);
-      }
-    });
-    heatContainer.dataset.heatClickBound = '1';
-  }
-}
+function renderSectorHeatAnalysis(data) { /* 热度已整合进板块排行徽章 */ }
 
 // ===== 13. 全球流动性指标 =====
 
@@ -4075,7 +3961,6 @@ async function loadData() {
 
     renderSectorRotation(data);
     renderSectorLinkage(data);
-    renderSectorHeatAnalysis(data);
     renderDragonStocks(data);
     renderSectorAdvice(data);
     renderSupplyChain();
@@ -4086,16 +3971,11 @@ async function loadData() {
     renderShortTermSentiment(data);
     renderMarketSignals(data);
     renderFundFlow(data.sectorFundFlow);
-    renderInstitutional(data.northbound);
     renderNorthboundSectorTrend(data);
-    renderInstAdvice(data);
 
     renderRiskWarnings(data, decisionResult);
     renderAssetAllocation(decisionResult.positionAdvice, decisionResult.regimeResult);
-    renderSectorConcentration(data);
     $('risk-advice').innerHTML = renderRiskAdvice(data, decisionResult);
-
-    renderTextReport(data);
 
     const now = new Date();
     $('update-time').textContent = formatTime24(now);
@@ -4205,15 +4085,119 @@ function closeSidebarDrawer() {
 }
 
 // ===== 11. 导出报告 =====
-function exportReport() {
-  const report = generateTextReport(currentData);
-  const blob = new Blob([report], { type: 'text/markdown;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `A股市场分析报告_${new Date().toISOString().slice(0, 10)}.md`;
-  a.click();
-  URL.revokeObjectURL(url);
+function showReportModal() {
+  const modal = $('report-modal');
+  if (!modal) return;
+  modal.classList.add('show');
+  $('report-body').innerHTML = generateBrokerReport(currentData);
+}
+function closeReportModal() {
+  const modal = $('report-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+// ===== 券商研报风格生成 =====
+function generateBrokerReport(data) {
+  if (!data) return '<div style="text-align:center;color:var(--text-muted);padding:60px 0;">暂无数据，请先刷新</div>';
+  const regime = data.regimeResult || {};
+  const mktIdx = data.marketIndex || [];
+  const sh = mktIdx.find(i => i.code === 'sh000001') || {};
+  const sz = mktIdx.find(i => i.code === 'sz399001') || {};
+  const cyb = mktIdx.find(i => i.code === 'sz399006') || {};
+  const posAdvice = data.positionAdvice || (regime.positionAdvice || {});
+  const hotSectors = (data.sectorRank || []).slice().sort((a,b)=>b.changePct-a.changePct).slice(0,5);
+  const coldSectors = (data.sectorRank || []).slice().sort((a,b)=>a.changePct-b.changePct).slice(0,5);
+  const nb = (data.northbound && data.northbound.latest) ? data.northbound.latest : {};
+  const zt = data.limitUp?.total || 0;
+  const dt = data.limitDown?.total || 0;
+  const ratio = dt > 0 ? zt / dt : zt;
+  let sentimentScore = 50, sentimentLevel = '中性';
+  if (ratio > 5) { sentimentScore = 85; sentimentLevel = '极度亢奋'; }
+  else if (ratio > 3) { sentimentScore = 70; sentimentLevel = '偏强'; }
+  else if (ratio > 1.5) { sentimentScore = 55; sentimentLevel = '温和'; }
+  else if (ratio > 0.5) { sentimentScore = 40; sentimentLevel = '偏弱'; }
+  else { sentimentScore = 25; sentimentLevel = '冰点'; }
+
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+
+  const shChg = sh.changePct || 0;
+  const idxName = sh.name || '上证指数';
+
+  let summary = '';
+  if (shChg > 1) summary += `今日市场强势上涨，${idxName}收涨${fmtPct(shChg)}。`;
+  else if (shChg > 0) summary += `今日市场小幅收涨，${idxName}上涨${fmtPct(shChg)}。`;
+  else if (shChg > -1) summary += `今日市场震荡偏弱，${idxName}微跌${fmtPct(Math.abs(shChg))}。`;
+  else summary += `今日市场回调明显，${idxName}下跌${fmtPct(Math.abs(shChg))}。`;
+  summary += `市场判断：<strong>${regime.state || '震荡'}</strong>（${regime.trend || '-'}/${regime.flow || '-'}），建议权益仓位：<strong>${posAdvice.equityRatio ?? '--'}%</strong>。`;
+  if (nb.total != null) {
+    const sign = nb.total > 0 ? '净流入' : '净流出';
+    summary += `北向资金今日${sign}${Math.abs(nb.total).toFixed(2)}亿。`;
+  }
+
+  const totalTurnover = mktIdx.reduce((s, i) => s + (i.turnover || 0), 0);
+
+  let marketReview = `
+    <div class="report-metric-grid">
+      <div class="report-metric"><span>上证指数</span><b class="${shChg>=0?'up':'down'}">${fmtPct(shChg)}</b></div>
+      <div class="report-metric"><span>深证成指</span><b class="${(sz.changePct||0)>=0?'up':'down'}">${fmtPct(sz.changePct||0)}</b></div>
+      <div class="report-metric"><span>创业板指</span><b class="${(cyb.changePct||0)>=0?'up':'down'}">${fmtPct(cyb.changePct||0)}</b></div>
+      <div class="report-metric"><span>全市场成交额</span><b>${fmtAmt(totalTurnover)}</b></div>
+      <div class="report-metric"><span>涨停/跌停</span><b><span class="up">${zt}</span> / <span class="down">${dt}</span></b></div>
+      <div class="report-metric"><span>北向资金</span><b class="${(nb.total||0)>=0?'up':'down'}">${nb.total!=null?(nb.total>=0?'+':'')+nb.total.toFixed(1)+'亿':'--'}</b></div>
+    </div>
+    <p style="margin-top:12px;">情绪评分：<strong>${sentimentScore}</strong>分（${sentimentLevel}），
+    涨跌停比：<strong>${dt>0?(zt/dt).toFixed(2):'∞'}</strong>。</p>
+  `;
+
+  let sectorHTML = '<h3>领涨板块</h3><div class="report-sector-list">';
+  hotSectors.forEach((s, i) => {
+    sectorHTML += `<div class="report-sector-item"><span class="idx">${i+1}</span><span class="name">${s.name}</span><span class="pct up">${fmtPct(s.changePct)}</span></div>`;
+  });
+  sectorHTML += '</div><h3>领跌板块</h3><div class="report-sector-list">';
+  coldSectors.forEach((s, i) => {
+    sectorHTML += `<div class="report-sector-item"><span class="idx">${i+1}</span><span class="name">${s.name}</span><span class="pct down">${fmtPct(s.changePct)}</span></div>`;
+  });
+  sectorHTML += '</div>';
+
+  let strategy = '';
+  const equityRatio = posAdvice.equityRatio ?? 50;
+  const bondRatio = posAdvice.bondRatio ?? 30;
+  const cashRatio = posAdvice.cashRatio ?? 20;
+  strategy += `<p><strong>仓位建议：</strong>权益类 ${equityRatio}% / 债券类 ${bondRatio}% / 现金 ${cashRatio}%。</p>`;
+  const coreStrategy = posAdvice.coreStrategy ||
+    (regime.state==='牛市趋势'?'趋势加仓，顺势而为':
+     regime.state==='震荡修复'?'结构性机会，精选赛道':
+     regime.state==='回调风险'?'控制仓位，防御为主':'均衡配置，等待信号');
+  strategy += `<p><strong>核心策略：</strong>${coreStrategy}。</p>`;
+  if (hotSectors.length) {
+    strategy += `<p><strong>关注方向：</strong>${hotSectors.slice(0,3).map(s=>s.name).join('、')}。</p>`;
+  }
+
+  return `
+    <div class="report-header">
+      <div class="report-badge">策略日报</div>
+      <h1>A股市场策略日报</h1>
+      <div class="report-date">${dateStr} · 盘后策略</div>
+    </div>
+    <div class="report-summary-box">
+      <div class="report-summary-title">▎核心观点</div>
+      <div>${summary}</div>
+    </div>
+    <h2>一、市场回顾</h2>
+    ${marketReview}
+    <h2>二、板块分析</h2>
+    ${sectorHTML}
+    <h2>三、策略建议</h2>
+    ${strategy}
+    <h2>四、风险提示</h2>
+    <ul class="report-risk">
+      <li><span class="risk-tag high">高风险</span>政策落地不及预期，宏观流动性收紧超预期</li>
+      <li><span class="risk-tag mid">中风险</span>北向资金持续流出，外围市场大幅波动</li>
+      <li><span class="risk-tag low">低风险</span>行业景气度低于预期，个股业绩不及预期</li>
+    </ul>
+    <div class="report-disclaimer">免责声明：本报告基于公开数据自动生成，仅供参考，不构成投资建议。投资有风险，入市需谨慎。</div>
+  `;
 }
 
 // ===== 历史快照系统 =====
@@ -4449,7 +4433,6 @@ function loadDataWithData(data) {
   const decisionResult = renderDecisionCore(data);
   renderSectorRotation(data);
   renderSectorLinkage(data);
-  renderSectorHeatAnalysis(data);
   renderDragonStocks(data);
   renderSectorAdvice(data);
   renderSupplyChain();
@@ -4460,14 +4443,10 @@ function loadDataWithData(data) {
   renderShortTermSentiment(data);
   renderMarketSignals(data);
   renderFundFlow(data.sectorFundFlow);
-  renderInstitutional(data.northbound);
   renderNorthboundSectorTrend(data);
-  renderInstAdvice(data);
   renderRiskWarnings(data, decisionResult);
   renderAssetAllocation(decisionResult.positionAdvice, decisionResult.regimeResult);
-  renderSectorConcentration(data);
   $('risk-advice').innerHTML = renderRiskAdvice(data, decisionResult);
-  renderTextReport(data);
 }
 
 // ===== 入口 =====
@@ -4476,7 +4455,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindStockClicks();
 
   $('btn-refresh').addEventListener('click', loadData);
-  $('btn-export').addEventListener('click', exportReport);
+  $('btn-report')?.addEventListener('click', showReportModal);
   $('auto-refresh').addEventListener('change', (e) => {
     toggleAutoRefresh(e.target.checked);
   });
@@ -4493,13 +4472,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentData) {
           const decisionResult = renderDecisionCore(currentData);
           renderAssetAllocation(decisionResult.positionAdvice, decisionResult.regimeResult);
-          renderRiskAdvice(currentData, decisionResult);
+          $('risk-advice').innerHTML = renderRiskAdvice(currentData, decisionResult);
           $('risk-fund-tag').textContent = formatFundLabel(val) + '基金标配';
           $('fund-allocation-title').textContent = formatFundLabel(val);
           $('total-fund-label').textContent = formatFundLabel(val) + '总规模';
           $('single-stock-cap').textContent = formatAmt(val * 0.05);
           $('decision-fund-size-label').textContent = formatFundLabel(val);
-          renderSectorHeatAnalysis(currentData);
         }
       }
     });
@@ -4511,13 +4489,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentData) {
         const decisionResult = renderDecisionCore(currentData);
         renderAssetAllocation(decisionResult.positionAdvice, decisionResult.regimeResult);
-        renderRiskAdvice(currentData, decisionResult);
+        $('risk-advice').innerHTML = renderRiskAdvice(currentData, decisionResult);
         $('risk-fund-tag').textContent = formatFundLabel(userFundSize) + '基金标配';
         $('fund-allocation-title').textContent = formatFundLabel(userFundSize);
         $('total-fund-label').textContent = formatFundLabel(userFundSize) + '总规模';
         $('single-stock-cap').textContent = formatAmt(userFundSize * 0.05);
         $('decision-fund-size-label').textContent = formatFundLabel(userFundSize);
-        renderSectorHeatAnalysis(currentData);
       }
     });
   }

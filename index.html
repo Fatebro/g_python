@@ -1582,7 +1582,7 @@
     <!-- 投资决策核心面板（200亿基金视角：一眼看清市场状态+仓位+风险）-->
     <div class="card" id="decision-core-panel" style="margin-bottom: 20px; border: 2px solid var(--accent); background: linear-gradient(135deg, rgba(96,165,250,0.08), rgba(239,68,68,0.04));">
       <div class="card-title" style="margin-bottom: 14px;">
-        🎯 投资决策核心 · 200亿基金操作指南
+        🎯 投资决策核心 · <span id="decision-fund-size-label">200亿</span>基金操作指南
         <span style="margin-left: auto; font-size: 11px; color: var(--text-muted); font-weight: 400;" id="data-quality-tag">
           数据质量：<span id="dq-score">--</span>/10 · <span id="dq-label">评估中</span>
         </span>
@@ -1814,6 +1814,12 @@
         <div id="future-trend-summary" class="future-trend-summary"></div>
       </div>
       <div class="card">
+        <div class="card-title">🚀 未来板块前瞻（全板块一览）</div>
+        <div class="future-sector-grid scroll-list" id="future-sectors-list" style="max-height:520px;">
+          <div class="empty-tip">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
         <div class="card-title">🌳 链主公司追踪（当前未来板块）<span class="horizon-tag">思路④ · 1年-10年</span></div>
         <div class="chain-leader-list" id="chain-leader-list">
           <div class="empty-tip">加载中...</div>
@@ -1904,6 +1910,9 @@
             <div class="mood-stat-label">涨停质量</div>
           </div>
         </div>
+        <div id="sentiment-cycle" style="margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);">
+          <div class="empty-tip">加载中...</div>
+        </div>
       </div>
 
       <!-- ③ 个股目标：龙虎榜 + 涨停板（左右对照）-->
@@ -1955,6 +1964,22 @@
           </div>
           <div class="chart-container">
             <canvas id="chart-northbound"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 北向资金行业配置 + 机构建议 -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📊 北向资金行业配置 TOP8</div>
+          <div class="nb-sector-list scroll-list" id="nb-sector-trend" style="max-height:360px;">
+            <div class="empty-tip">加载中...</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🏛️ 机构资金操作建议</div>
+          <div id="inst-advice" class="text-report">
+            <div class="empty-tip">加载中...</div>
           </div>
         </div>
       </div>

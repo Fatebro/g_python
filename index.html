@@ -1413,6 +1413,35 @@
     .grid-2-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .grid-liquidity { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
 
+    /* ===== 侧边栏布局 ===== */
+    .layout { display: flex; gap: 0; align-items: flex-start; }
+    .sidebar {
+      width: 220px; flex-shrink: 0; position: sticky; top: 0; max-height: 100vh; overflow-y: auto;
+      background: var(--card); border-right: 1px solid var(--border);
+      padding: 14px 12px; z-index: 50;
+      transition: transform 0.3s ease, width 0.3s ease;
+    }
+    .sidebar-section { margin-bottom: 18px; }
+    .sidebar-title { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+    .sidebar-th-bar { grid-template-columns: 1fr !important; gap: 6px !important; }
+    .sidebar-th-bar .th-item { padding: 6px 8px; border-radius: 6px; background: var(--bg-soft); }
+    .sidebar-th-bar .th-item .th-thought { font-size: 11px; font-weight: 600; }
+    .sidebar-th-bar .th-item .th-label { font-size: 10px; }
+    .sidebar-th-bar .th-item .th-desc { font-size: 10px; color: var(--text-muted); }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+    .nav-link { font-size: 12px; color: var(--text-dim); padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; text-decoration: none; display: block; }
+    .nav-link:hover { background: var(--bg-soft); color: var(--accent); }
+    .nav-link.active { background: rgba(96,165,250,0.12); color: var(--accent); font-weight: 600; }
+    .sidebar-snapshot { font-size: 11px; color: var(--text-dim); max-height: 180px; overflow-y: auto; }
+    .sidebar-snapshot-item { padding: 4px 6px; border-radius: 4px; cursor: pointer; margin-bottom: 3px; border: 1px solid transparent; }
+    .sidebar-snapshot-item:hover { background: var(--bg-soft); }
+    .sidebar-snapshot-item.selected { background: rgba(96,165,250,0.15); border-color: var(--accent); color: var(--accent); }
+    .sidebar-snapshot-actions { display: none; flex-direction: row; }
+    .sidebar-toggle { display: none; position: fixed; top: 12px; right: 12px; z-index: 100; width: 36px; height: 36px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--text); font-size: 18px; cursor: pointer; align-items: center; justify-content: center; }
+    .sidebar.collapsed { transform: translateX(-100%); }
+    .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
+    .sidebar-backdrop.show { display: block; }
+
     /* ===== 响应式 - 竖屏优化 ===== */
     @media (max-width: 900px) {
       .market-index-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1425,8 +1454,13 @@
       .grid-liquidity { grid-template-columns: repeat(2, 1fr); }
       .mood-stats { grid-template-columns: repeat(2, 1fr); }
       .nb-stats { grid-template-columns: 1fr; }
+      /* 侧边栏在窄屏变为抽屉 */
+      .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 260px; transform: translateX(-100%); z-index: 200; }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-toggle { display: flex; }
+      .layout { flex-direction: column; }
       .header {
-        padding: 12px 16px;
+        padding: 12px 50px 12px 16px;
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
@@ -1538,6 +1572,15 @@
       .market-index-grid.global { grid-template-columns: repeat(2, 1fr); }
       .time-horizon-bar { grid-template-columns: repeat(2, 1fr); }
       .chart-container { height: 260px; }
+      /* 竖屏下侧边栏收起为抽屉，腾出主内容横向空间 */
+      .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 260px; transform: translateX(-100%); z-index: 200; box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-toggle { display: flex; }
+      .layout { flex-direction: column; }
+      .container { width: 100%; }
+      /* 顶部栏右侧留出空间避免与☰按钮重叠 */
+      .header { padding-right: 52px; }
+      .header-right { flex-wrap: wrap; gap: 8px; }
     }
   </style>
 </head>
@@ -1560,17 +1603,79 @@
       </label>
       <button class="btn primary" id="btn-refresh">刷新数据</button>
       <button class="btn" id="btn-export">导出报告</button>
-      <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
-        <button class="btn" id="btn-snapshot" style="font-size: 11px;" title="保存当前快照">📷 快照</button>
-        <select id="snapshot-select" style="background: var(--bg-soft); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; padding: 4px 6px; max-width: 140px;">
-          <option value="">历史回溯</option>
-        </select>
-        <button class="btn" id="btn-restore-snapshot" style="font-size: 11px;" title="回溯到选中快照">⏮ 回溯</button>
-        <button class="btn" id="btn-compare-snapshot" style="font-size: 11px;" title="对比当前与选中快照">📊 对比</button>
-        <button class="btn" id="btn-delete-snapshot" style="font-size: 11px;" title="删除选中快照">🗑️</button>
-      </div>
+      <button class="btn" id="btn-snapshot" style="font-size: 11px;" title="保存当前快照">📷 快照</button>
     </div>
   </div>
+
+  <!-- 侧边栏切换按钮（窄屏/竖屏显示） -->
+  <button class="sidebar-toggle" id="sidebar-toggle" title="展开/收起侧边栏">☰</button>
+  <!-- 侧边栏遮罩（抽屉模式） -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- 主体布局：侧边栏 + 主内容区 -->
+  <div class="layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">⏱️ 时间颗粒度</div>
+        <div class="time-horizon-bar sidebar-th-bar">
+          <div class="th-item rotation">
+            <div class="th-thought">① 板块轮动</div>
+            <div class="th-label">1天-1周</div>
+            <div class="th-desc">跟着资金走</div>
+          </div>
+          <div class="th-item signal">
+            <div class="th-thought">② 反常信号</div>
+            <div class="th-label">1周-1月</div>
+            <div class="th-desc">验证趋势</div>
+          </div>
+          <div class="th-item supplychain">
+            <div class="th-thought">③ 供应链</div>
+            <div class="th-label">1月-3月</div>
+            <div class="th-desc">卡脖子节点</div>
+          </div>
+          <div class="th-item ecology">
+            <div class="th-thought">④ 产业生态</div>
+            <div class="th-label">1年-10年</div>
+            <div class="th-desc">布局链主</div>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">🧭 快捷导航</div>
+        <div class="sidebar-nav" id="sidebar-nav">
+          <a class="nav-link" data-tab="sector">📊 板块轮动龙头</a>
+          <a class="nav-link" data-tab="risk">🛡️ 策略风控</a>
+          <a class="nav-link" data-tab="supply">🔗 产业链传导</a>
+          <a class="nav-link" data-tab="ecology">🌳 产业生态</a>
+          <a class="nav-link" data-tab="policy">📜 政策风向</a>
+          <a class="nav-link" data-tab="market">📈 市场动态</a>
+          <a class="nav-link" data-tab="report">📝 分析报告</a>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">📷 历史快照</div>
+        <div class="sidebar-snapshot" id="sidebar-snapshot">
+          <div style="font-size:11px;color:var(--text-muted);">暂无快照，点击上方📷按钮保存</div>
+        </div>
+        <div class="sidebar-snapshot-actions" id="sidebar-snapshot-actions" style="display:none;margin-top:8px;gap:4px;">
+          <button class="btn" id="btn-restore-snapshot" style="flex:1;font-size:10px;padding:4px 6px;" title="回溯到选中快照">⏮ 回溯</button>
+          <button class="btn" id="btn-compare-snapshot" style="flex:1;font-size:10px;padding:4px 6px;" title="对比当前与选中快照">📊 对比</button>
+          <button class="btn" id="btn-delete-snapshot" style="font-size:10px;padding:4px 6px;" title="删除选中快照">🗑️</button>
+        </div>
+        <select id="snapshot-select" style="display:none;"></select>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">💡 使用提示</div>
+        <div style="font-size:11px;color:var(--text-muted);line-height:1.7;">
+          · 点击板块名查看详情<br/>
+          · 点击龙头/链主查看K线<br/>
+          · 点击卡脖子跳转产业链<br/>
+          · 策略风控可自定义资产规模<br/>
+          · 历史快照可回溯对比
+        </div>
+      </div>
+    </aside>
 
   <div class="container">
 
@@ -1701,37 +1806,6 @@
       <button class="tab-btn" data-tab="policy">📜 政策风向</button>
       <button class="tab-btn" data-tab="market">📈 市场动态</button>
       <button class="tab-btn" data-tab="report">📝 分析报告</button>
-    </div>
-
-    <!-- 四大思路时间颗粒度对齐（常驻说明） -->
-    <div class="card" style="padding:14px 18px;">
-      <div class="card-title" style="margin-bottom:10px;">⏱️ 数据时间颗粒度对齐（不同思路用不同周期数据，避免错配）</div>
-      <div class="time-horizon-bar">
-        <div class="th-item rotation">
-          <div class="th-thought">① 板块轮动龙头</div>
-          <div class="th-label">1天-1周</div>
-          <div class="th-scope">当日资金流向 + 5日主力净流入</div>
-          <div class="th-desc">跟着资金走，换仓快</div>
-        </div>
-        <div class="th-item signal">
-          <div class="th-thought">② 身边反常信号</div>
-          <div class="th-label">1周-1月</div>
-          <div class="th-scope">价格趋势 + 行业景气度</div>
-          <div class="th-desc">发现结构性变化，验证趋势</div>
-        </div>
-        <div class="th-item supplychain">
-          <div class="th-thought">③ 供应链狙击</div>
-          <div class="th-label">1月-3月</div>
-          <div class="th-scope">产能/订单/催化剂</div>
-          <div class="th-desc">找卡脖子节点，等催化剂</div>
-        </div>
-        <div class="th-item ecology">
-          <div class="th-thought">④ 产业生态构建</div>
-          <div class="th-label">1年-10年</div>
-          <div class="th-scope">长周期产业趋势 + 链主飞轮</div>
-          <div class="th-desc">用长远眼光布局链主</div>
-        </div>
-      </div>
     </div>
 
     <!-- 板块轮动龙头 -->
@@ -2216,7 +2290,8 @@
       </div>
     </div>
 
-  </div>
+  </div><!-- /container -->
+  </div><!-- /layout -->
 
   <div class="footer">
     数据来源：东方财富 · 新浪财经 | 仅供参考，不构成投资建议 | 投资有风险，入市需谨慎

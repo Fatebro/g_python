@@ -730,7 +730,8 @@ function renderSectorDetail(sectorName) {
 
   // 1) 资金趋势（该板块 + 相关板块的主力净流入 + 5日趋势图）
   const fundData = d.sectorFundFlow || [];
-  const target = fundData.find(s => s.name === sectorName);
+  const target = fundData.find(s => s.name === sectorName) ||
+    fundData.find(s => s.name.includes(sectorName) || sectorName.includes(s.name));
   // 找相关板块（名称包含关系）
   const related = fundData.filter(s =>
     s.name !== sectorName && (
@@ -822,12 +823,20 @@ function renderSectorDetail(sectorName) {
     }
   }, 50);
 
-  // 2) 龙头股（从个股资金流入匹配）
+  // 2) 龙头股（从个股资金流入匹配，匹配不足时用全市场活跃股兜底）
   const stockData = d.stockFundInflow || [];
-  const dragons = stockData.filter(s => matchSector(s, sectorName))
+  let dragons = stockData.filter(s => matchSector(s, sectorName))
     .sort((a, b) => (b.mainNetInflow || 0) - (a.mainNetInflow || 0))
     .slice(0, 8);
-  $('detail-dragons').innerHTML = dragons.length ? dragons.map((s, idx) => `
+  let dragonFallbackNote = '';
+  // 兜底：板块无匹配个股时（资金榜TOP20未覆盖该板块），用全市场主力净流入TOP补齐
+  if (dragons.length === 0 && stockData.length > 0) {
+    dragons = [...stockData]
+      .sort((a, b) => (b.mainNetInflow || 0) - (a.mainNetInflow || 0))
+      .slice(0, 6);
+    dragonFallbackNote = '<div style="font-size:11px;color:var(--warn);margin-bottom:8px;">⚠️ 资金榜TOP20未覆盖该板块，以下为全市场活跃个股（参考）</div>';
+  }
+  $('detail-dragons').innerHTML = dragons.length ? dragonFallbackNote + dragons.map((s, idx) => `
     <div class="detail-stock-row stock-clickable-row" data-index="${idx}" style="cursor:pointer;">
       <span class="ds-name">${idx + 1}. ${s.name}<em>${s.code}</em></span>
       <span class="ds-price">${s.price != null ? s.price.toFixed(2) : '--'}</span>
@@ -849,14 +858,24 @@ function renderSectorDetail(sectorName) {
   }, 30);
 
   // 3) 链主公司（按当前产业链取，筛选与板块相关的）
-  const detail = CHAIN_DETAIL[chainKey] || CHAIN_DETAIL.ai;
-  const allLeaders = detail.leaders || [];
+  // 注意：sectorToChain 返回 null 表示该板块未纳入产业链追踪，不应默认套用 AI 链主
+  const realChainKey = sectorToChain(sectorName);
+  const detail = realChainKey ? (CHAIN_DETAIL[realChainKey] || CHAIN_DETAIL.ai) : null;
+  const allLeaders = detail ? (detail.leaders || []) : [];
+  // 链内匹配用完整别名集合（仅在已确定产业链后使用，避免跨链污染）
+  const sectorAliases = getSectorAliasSet(sectorName);
+  const normSec = normalizeSectorName(sectorName);
   const leaders = allLeaders.filter(l =>
-    l.industry.includes(sectorName) || sectorName.includes(l.industry) ||
-    l.name.includes(sectorName) || sectorName.includes(l.name) ||
-    getRelatedSectors(sectorName).some(r => l.industry.includes(r) || l.name.includes(r))
+    l.industry.includes(normSec) || normSec.includes(l.industry) ||
+    l.name.includes(normSec) || normSec.includes(l.name) ||
+    sectorAliases.some(a => l.industry.includes(a) || l.name.includes(a)) ||
+    getRelatedSectors(normSec).some(r => l.industry.includes(r) || l.name.includes(r))
   );
-  const displayLeaders = leaders.length > 0 ? leaders : allLeaders.slice(0, 3);
+  // 仅当确实匹配到链主时才展示；无产业链映射或无匹配时给出明确提示，避免展示无关链主
+  const displayLeaders = leaders;
+  const leaderEmptyHint = !realChainKey
+    ? '<div class="detail-empty">该板块暂未纳入产业链追踪（仅科技/新能源/半导体等核心赛道有链主图谱）。可点击下方"卡脖子节点"或切换至「产业链传导」Tab查看完整产业链。</div>'
+    : '<div class="detail-empty">当前产业链暂无与该板块强相关的链主公司</div>';
   $('detail-leaders').innerHTML = displayLeaders.length ? displayLeaders.map((l, idx) => `
     <div class="detail-leader-row leader-clickable" data-idx="${idx}" style="cursor:pointer;">
       <div>
@@ -865,7 +884,7 @@ function renderSectorDetail(sectorName) {
       </div>
       <span class="dl-badge">链主</span>
     </div>
-  `).join('') : '<div class="detail-empty">该板块暂无链主公司追踪</div>';
+  `).join('') : leaderEmptyHint;
   // 绑定链主点击事件
   setTimeout(() => {
     document.querySelectorAll('#detail-leaders .leader-clickable').forEach(row => {
@@ -896,14 +915,19 @@ function renderSectorDetail(sectorName) {
   }, 30);
 
   // 4) 卡脖子技术节点（按当前产业链取，筛选与板块相关的）
-  const allBotts = detail.bottlenecks || [];
+  const allBotts = detail ? (detail.bottlenecks || []) : [];
   const botts = allBotts.filter(b =>
-    b.title.includes(sectorName) || sectorName.includes(b.title) ||
-    b.stocks.includes(sectorName) ||
-    (b.type && (sectorName.includes(b.type) || b.type.includes(sectorName))) ||
-    getRelatedSectors(sectorName).some(r => b.title.includes(r) || b.stocks.includes(r))
+    b.title.includes(normSec) || normSec.includes(b.title) ||
+    b.stocks.includes(normSec) ||
+    (b.type && (normSec.includes(b.type) || b.type.includes(normSec))) ||
+    sectorAliases.some(a => b.title.includes(a) || b.stocks.includes(a) || (b.type && a.includes(b.type))) ||
+    getRelatedSectors(normSec).some(r => b.title.includes(r) || b.stocks.includes(r))
   );
-  const displayBotts = botts.length > 0 ? botts : allBotts.slice(0, 2);
+  // 无产业链映射时不强行展示无关卡脖子节点
+  const displayBotts = botts;
+  const bottEmptyHint = !realChainKey
+    ? '<div class="detail-empty">该板块暂未纳入产业链追踪，无卡脖子节点数据。可切换至「产业链传导」Tab查看核心赛道（AI/新能源/半导体等）的卡脖子图谱。</div>'
+    : '<div class="detail-empty">当前产业链暂无与该板块强相关的卡脖子节点</div>';
   const typeClassMap2 = {
     '设备': 'type-equipment', '材料': 'type-material', '芯片': 'type-chip',
     '设计': 'type-design', '材料/芯片': 'type-chip', '材料/设备': 'type-equipment', '综合': 'type-other'
@@ -913,7 +937,7 @@ function renderSectorDetail(sectorName) {
     '设计': '📐', '材料/芯片': '💾', '材料/设备': '⚙️', '综合': '🎯'
   };
   const bottContainer = $('detail-bottlenecks');
-  bottContainer.dataset.chainKey = chainKey;
+  bottContainer.dataset.chainKey = realChainKey || chainKey;
   bottContainer.innerHTML = displayBotts.length ? displayBotts.map(b => {
     const type = b.type || '综合';
     const tClass = typeClassMap2[type] || 'type-other';
@@ -924,7 +948,7 @@ function renderSectorDetail(sectorName) {
       <div class="db-desc">${b.desc}</div>
       <div class="db-stocks">相关标的：${b.stocks}</div>
     </div>
-  `}).join('') : '<div class="detail-empty">该板块暂无卡脖子节点</div>';
+  `}).join('') : bottEmptyHint;
   // 卡脖子节点点击 → 跳转产业链Tab并切换到对应产业链（事件委托，chainKey 取最新渲染值避免闭包过期）
   if (!bottContainer.dataset.bottClickBound) {
     bottContainer.addEventListener('click', (e) => {
@@ -1037,15 +1061,56 @@ function renderSectorLinkage(data) {
 }
 
 // ===== 2c. 热点板块龙头股 + 策略建议 =====
+// 申万一级行业 → 细分行业/关键词映射（用于板块与个股匹配）
+const SECTOR_ALIASES = {
+  '电子': ['半导体', '通信设备', '消费电子', '电子', '芯片', '集成电路', '面板', '光模块', '光芯片'],
+  '通信': ['通信', '通信设备', '光模块', 'CPO', '5G', '运营商'],
+  '计算机': ['计算机', '软件', 'AI', '算力', '云计算', '数据中心', '信息技术'],
+  '国防军工': ['国防军工', '航空装备', '军工材料', '航天', '军工', '航空发动机'],
+  '传媒': ['传媒', '游戏', '影视', '广告', '出版'],
+  '机械设备': ['机械设备', '自动化设备', '工业机械', '专用设备'],
+  '有色金属': ['有色金属', '黄金', '贵金属', '铜', '铝', '锂矿', '钴矿'],
+  '电力设备': ['电力设备', '电池', '光伏', '风电', '储能', '新能源', '逆变器'],
+  '汽车': ['汽车', '新能源汽车', '汽车零部件', '乘用车', '商用车'],
+  '公用事业': ['公用事业', '电力', '燃气', '环保'],
+  '交通运输': ['交通运输', '港口', '航运', '航空', '物流'],
+  '医药生物': ['医药生物', '化学制药', '创新药', '医疗器械', 'CXO', '原料药', '生物制品'],
+  '食品饮料': ['食品饮料', '白酒', '啤酒', '食品', '饮料', '乳品'],
+  '银行': ['银行'],
+  '非银金融': ['非银金融', '保险', '证券', '信托'],
+  '房地产': ['房地产', '房地产开发', '物业管理'],
+  '煤炭': ['煤炭', '煤炭开采'],
+  '石油石化': ['石油石化', '石油', '石化', '化工'],
+  '基础化工': ['基础化工', '化工', '化学', '塑料', '橡胶'],
+  '钢铁': ['钢铁', '特钢', '不锈钢'],
+  '建筑材料': ['建筑材料', '水泥', '玻璃', '建材'],
+  '建筑装饰': ['建筑装饰', '装修', '建筑'],
+  '纺织服饰': ['纺织服饰', '服装', '纺织'],
+  '轻工制造': ['轻工制造', '造纸', '家具', '包装'],
+  '家用电器': ['家用电器', '家电', '白电', '小家电'],
+  '商贸零售': ['商贸零售', '零售', '商业'],
+  '社会服务': ['社会服务', '酒店', '餐饮', '旅游'],
+  '美容护理': ['美容护理', '化妆品'],
+  '农林牧渔': ['农林牧渔', '农业', '养殖', '饲料'],
+  '环保': ['环保', '节能', '环境'],
+  '综合': ['综合'],
+};
+
 // 龙头筛选逻辑：
 //   1) 取板块涨幅 TOP3 作为热点方向
 //   2) 用个股 industry 字段（f100）匹配板块，命中即取该板块资金净流入最大的 2 只
 //   3) 匹配不足时，用「主力资金净流入 TOP 个股」兜底，保证永远有龙头展示
 function matchSector(stock, sectorName) {
   const ind = (stock.industry || '').trim();
-  const sec = (sectorName || '').trim();
+  const sec = normalizeSectorName(sectorName);
   if (!ind || !sec) return false;
-  return ind === sec || ind.includes(sec) || sec.includes(ind);
+  // 精确匹配
+  if (ind === sec) return true;
+  // 包含匹配
+  if (ind.includes(sec) || sec.includes(ind)) return true;
+  // 别名匹配（含父级行业细分别名，兼容细分/概念板块名）
+  const aliasSet = getSectorAliasSet(sec);
+  return aliasSet.some(a => a !== sec && (ind.includes(a) || a.includes(ind)));
 }
 
 function renderDragonStocks(data) {
@@ -1218,12 +1283,63 @@ let currentChain = 'ai';
 // 板块名 → 产业链 key 映射
 function sectorToChain(sectorName) {
   if (!sectorName) return null;
+  const sec = normalizeSectorName(sectorName);
+  // 先用原名匹配
   for (const chain of SUPPLY_CHAINS) {
-    if (chain.sectors.some(s => sectorName.includes(s) || s.includes(sectorName))) {
+    if (chain.sectors.some(s => sec.includes(s) || s.includes(sec))) {
+      return chain.key;
+    }
+  }
+  // 再用别名匹配（板块名正好是申万一级行业 key）
+  const aliases = SECTOR_ALIASES[sec] || [];
+  for (const chain of SUPPLY_CHAINS) {
+    if (chain.sectors.some(s => aliases.some(a => s.includes(a) || a.includes(s)))) {
+      return chain.key;
+    }
+  }
+  // 反查：板块名可能是细分行业（如"黄金""机器人""航天装备"），找其所属申万一级行业再匹配
+  const parentAliases = findParentSectorAliases(sec);
+  for (const chain of SUPPLY_CHAINS) {
+    if (chain.sectors.some(s => parentAliases.some(a => s.includes(a) || a.includes(s)))) {
       return chain.key;
     }
   }
   return null;
+}
+
+// 规范化板块名：去除东财后缀的层级标记（Ⅲ/Ⅱ/Ⅰ等）与首尾空白
+function normalizeSectorName(name) {
+  return (name || '').trim().replace(/[ⅠⅡⅢⅣⅤ]+$/, '').replace(/[IIVX]+$/, '').trim();
+}
+
+// 反查细分行业/概念板块所属的申万一级行业
+// 例如 "黄金" → ["有色金属"]，"航天装备" → ["国防军工"]
+// 只返回父级行业名，避免别名交叉污染（如有色金属别名既含黄金又含锂矿，后者属新能源链）
+function findParentSectorAliases(sectorName) {
+  if (!sectorName) return [];
+  const sec = normalizeSectorName(sectorName);
+  const parents = [];
+  for (const [parent, aliases] of Object.entries(SECTOR_ALIASES)) {
+    if (parent === sec || aliases.some(a => sec === a || sec.includes(a) || a.includes(sec))) {
+      parents.push(parent);
+    }
+  }
+  return parents;
+}
+
+// 取板块用于"链内匹配"的完整别名集合（含父级行业的所有细分别名）
+// 仅在已确定产业链 realChainKey 后使用，避免跨链污染
+function getSectorAliasSet(sectorName) {
+  const sec = normalizeSectorName(sectorName);
+  const parents = findParentSectorAliases(sec);
+  const set = new Set([sec]);
+  set.add(sec);
+  if (SECTOR_ALIASES[sec]) SECTOR_ALIASES[sec].forEach(a => set.add(a));
+  parents.forEach(p => {
+    set.add(p);
+    (SECTOR_ALIASES[p] || []).forEach(a => set.add(a));
+  });
+  return [...set];
 }
 
 // 统一产业链数据仓库（链主/卡脖子/投资动向/案例/飞轮标的/建议）
@@ -4016,13 +4132,32 @@ function toggleAutoRefresh(enabled) {
 function initTabs() {
   const tabs = document.querySelectorAll('.tab-btn');
   const panels = document.querySelectorAll('.tab-panel');
+  const navLinks = document.querySelectorAll('.nav-link');
+
+  function switchTab(target) {
+    tabs.forEach(t => t.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    navLinks.forEach(n => n.classList.remove('active'));
+    const tab = document.querySelector(`.tab-btn[data-tab="${target}"]`);
+    if (tab) tab.classList.add('active');
+    const panel = $('panel-' + target);
+    if (panel) panel.classList.add('active');
+    const nav = document.querySelector(`.nav-link[data-tab="${target}"]`);
+    if (nav) nav.classList.add('active');
+  }
+
   tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.dataset.tab;
-      tabs.forEach(t => t.classList.remove('active'));
-      panels.forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      $('panel-' + target).classList.add('active');
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
+  // 侧边栏导航点击
+  navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchTab(link.dataset.tab);
+      // 抽屉模式下点击导航后收起侧边栏
+      if (isSidebarDrawerMode()) {
+        closeSidebarDrawer();
+      }
     });
   });
 
@@ -4037,6 +4172,36 @@ function initTabs() {
       });
     });
   }
+
+  // 侧边栏切换按钮（窄屏/竖屏抽屉模式）
+  const sidebarToggle = $('sidebar-toggle');
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', () => {
+      const sb = $('sidebar');
+      const bd = $('sidebar-backdrop');
+      const isOpen = sb.classList.toggle('open');
+      if (bd) bd.classList.toggle('show', isOpen);
+    });
+  }
+  // 点击遮罩收起侧边栏
+  const backdrop = $('sidebar-backdrop');
+  if (backdrop) {
+    backdrop.addEventListener('click', closeSidebarDrawer);
+  }
+}
+
+// 判断当前是否为侧边栏抽屉模式（窄屏或竖屏）
+function isSidebarDrawerMode() {
+  return window.innerWidth <= 900 ||
+    (window.matchMedia && window.matchMedia('(orientation: portrait) and (max-width: 1024px)').matches);
+}
+
+// 收起侧边栏抽屉
+function closeSidebarDrawer() {
+  const sb = $('sidebar');
+  const bd = $('sidebar-backdrop');
+  if (sb) sb.classList.remove('open');
+  if (bd) bd.classList.remove('show');
 }
 
 // ===== 11. 导出报告 =====
@@ -4054,6 +4219,7 @@ function exportReport() {
 // ===== 历史快照系统 =====
 let snapshots = []; // 内存存储所有快照
 let restoredSnapshot = null; // 当前回溯的快照
+let selectedSnapshotId = null; // 侧边栏选中的快照ID
 
 // 保存当前数据快照
 function saveSnapshot() {
@@ -4083,17 +4249,42 @@ function saveSnapshot() {
 // 更新快照下拉选择器
 function updateSnapshotSelect() {
   const sel = $('snapshot-select');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">历史回溯</option>' + snapshots.map(s =>
-    `<option value="${s.id}">${s.time} | ${s.summary.regime} | ${s.summary.position}</option>`
-  ).join('');
+  if (sel) {
+    sel.innerHTML = '<option value="">历史回溯</option>' + snapshots.map(s =>
+      `<option value="${s.id}">${s.time} | ${s.summary.regime} | ${s.summary.position}</option>`
+    ).join('');
+  }
+  // 同步到侧边栏快照列表
+  const sidebarSnap = $('sidebar-snapshot');
+  const actionsBar = $('sidebar-snapshot-actions');
+  if (sidebarSnap) {
+    sidebarSnap.innerHTML = snapshots.length ? snapshots.slice(0, 10).map(s => `
+      <div class="sidebar-snapshot-item${s.id === selectedSnapshotId ? ' selected' : ''}" data-id="${s.id}">
+        📷 ${s.time.slice(5, 16)}<br/>
+        <span style="color:var(--text-muted);">${s.summary.regime} | ${s.summary.position}</span>
+      </div>
+    `).join('') : '<div style="font-size:11px;color:var(--text-muted);">暂无快照，点击上方📷按钮保存</div>';
+    // 绑定点击事件 - 选中（高亮），不立即回溯
+    sidebarSnap.querySelectorAll('.sidebar-snapshot-item').forEach(item => {
+      item.addEventListener('click', () => {
+        selectedSnapshotId = parseInt(item.dataset.id);
+        if (sel) sel.value = String(selectedSnapshotId);
+        // 高亮选中项
+        sidebarSnap.querySelectorAll('.sidebar-snapshot-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        // 显示操作按钮
+        if (actionsBar) actionsBar.style.display = 'flex';
+      });
+    });
+  }
+  // 无快照时隐藏操作按钮
+  if (actionsBar && snapshots.length === 0) actionsBar.style.display = 'none';
 }
 
 // 回溯到选中快照
 function restoreSnapshot() {
-  const sel = $('snapshot-select');
-  const id = parseInt(sel.value);
-  if (!id) { alert('请先选择一个快照'); return; }
+  const id = selectedSnapshotId;
+  if (!id) { alert('请先在侧边栏选择一个快照'); return; }
   const snap = snapshots.find(s => s.id === id);
   if (!snap) { alert('快照不存在'); return; }
   restoredSnapshot = snap;
@@ -4110,9 +4301,8 @@ function restoreSnapshot() {
 
 // 对比当前与选中快照
 function compareSnapshot() {
-  const sel = $('snapshot-select');
-  const id = parseInt(sel.value);
-  if (!id) { alert('请先选择一个快照'); return; }
+  const id = selectedSnapshotId;
+  if (!id) { alert('请先在侧边栏选择一个快照'); return; }
   const snap = snapshots.find(s => s.id === id);
   if (!snap) { alert('快照不存在'); return; }
   if (!currentData) { alert('当前无数据，无法对比'); return; }
@@ -4229,11 +4419,11 @@ function generateCompareInsight(old, cur) {
 
 // 删除快照
 function deleteSnapshot() {
-  const sel = $('snapshot-select');
-  const id = parseInt(sel.value);
-  if (!id) { alert('请先选择一个快照'); return; }
+  const id = selectedSnapshotId;
+  if (!id) { alert('请先在侧边栏选择一个快照'); return; }
   if (!confirm('确定删除此快照？')) return;
   snapshots = snapshots.filter(s => s.id !== id);
+  selectedSnapshotId = null;
   try { localStorage.setItem('dashboard_snapshots', JSON.stringify(snapshots)); } catch(e) {}
   updateSnapshotSelect();
 }

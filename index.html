@@ -1670,16 +1670,6 @@
     .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
     .sidebar-backdrop.show { display: block; }
 
-    /* 横向滚动容器（竖屏溢出时使用） */
-    .global-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
-    .global-scroll-wrap::-webkit-scrollbar { display: none; }
-    .global-scroll-wrap .market-index-grid { grid-template-columns: repeat(5, minmax(130px, 1fr)); min-width: 650px; }
-    .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px; }
-    .table-scroll-wrap::-webkit-scrollbar { height: 4px; }
-    .table-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
-    .decision-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -12px; padding: 0 12px; }
-    .decision-scroll-wrap::-webkit-scrollbar { display: none; }
-
     /* ===== 响应式 - 竖屏优化 ===== */
     @media (max-width: 900px) {
       .market-index-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1807,6 +1797,9 @@
       .grid-2-inline { grid-template-columns: 1fr; }
       .grid-3-inline { grid-template-columns: 1fr; }
       .grid-liquidity { grid-template-columns: repeat(2, 1fr); }
+      .market-index-grid.global { grid-template-columns: repeat(3, 1fr); }
+      .market-index-grid.compact { grid-template-columns: 1fr 1fr; }
+      .global.compact { grid-template-columns: repeat(3, 1fr); }
       .time-horizon-bar { grid-template-columns: repeat(2, 1fr); }
       .chart-container { height: 240px; }
       .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 280px; transform: translateX(-100%); z-index: 200; box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
@@ -1828,10 +1821,7 @@
       #signal-details-panel .grid-2-inline { grid-template-columns: 1fr; }
       .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
       .tab-btn { flex-shrink: 0; padding: 8px 12px; font-size: 12px; white-space: nowrap; }
-      .detail-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
-      .detail-tabs::-webkit-scrollbar { display: none; }
-      .detail-tab-btn { flex-shrink: 0; white-space: nowrap; }
-      .sector-score-table { font-size: 11px; min-width: 560px; }
+      .sector-score-table { font-size: 11px; }
       .sector-score-table th, .sector-score-table td { padding: 7px 4px; }
       .sector-detail-body { grid-template-columns: 1fr !important; }
       #policy-section { grid-template-columns: 1fr !important; gap: 12px !important; }
@@ -1854,11 +1844,6 @@
       .history-tree { font-size: 12px; }
       .report-lib-grid { grid-template-columns: 1fr; }
       .card { padding: 12px; margin-bottom: 12px; }
-      .card-title { font-size: 13px; }
-      #decision-core-panel .card-title { flex-wrap: wrap; gap: 4px; }
-      #data-quality-tag { margin-left: 0 !important; width: 100%; font-size: 10px !important; }
-      body { overflow-x: hidden; }
-      .horizon-tag { flex-shrink: 0; }
     }
   </style>
 </head>
@@ -1962,14 +1947,12 @@
         <div class="index-card growth"><div class="idx-name">创业板指<span class="idx-tooltip">科技成长风向标，反映风险偏好</span></div><div class="idx-price">--</div><div class="idx-change">--</div><div class="idx-sub">成交 --</div></div>
       </div>
       <div class="index-divider"><span>🌍 全球联动 · 流动性</span></div>
-      <div class="global-scroll-wrap">
-        <div class="market-index-grid global compact" id="global-market-grid-top">
-          <div class="index-card"><div class="idx-name">标普500<span class="idx-tooltip">美股整体走势，全球风险偏好核心指标</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-          <div class="index-card"><div class="idx-name">纳斯达克<span class="idx-tooltip">科技股风向标，对A股科技有联动效应</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-          <div class="index-card"><div class="idx-name">恒生指数<span class="idx-tooltip">港股核心指数，外资流向敏感指标</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
-          <div class="index-card" style="border-left:3px solid var(--warn);"><div class="idx-name">VIX<span class="idx-tooltip">恐慌指数，>30恐慌，<15乐观</span></div><div class="idx-price" id="vix-price">--</div><div class="idx-change" id="vix-change">--</div></div>
-          <div class="index-card" style="border-left:3px solid var(--accent);"><div class="idx-name">美元指数<span class="idx-tooltip">美元强弱影响外资流向</span></div><div class="idx-price" id="dxy-price">--</div><div class="idx-change" id="dxy-change">--</div></div>
-        </div>
+      <div class="market-index-grid global compact" id="global-market-grid-top" style="grid-template-columns:repeat(5,1fr);">
+        <div class="index-card"><div class="idx-name">标普500<span class="idx-tooltip">美股整体走势，全球风险偏好核心指标</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">纳斯达克<span class="idx-tooltip">科技股风向标，对A股科技有联动效应</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card"><div class="idx-name">恒生指数<span class="idx-tooltip">港股核心指数，外资流向敏感指标</span></div><div class="idx-price">--</div><div class="idx-change">--</div></div>
+        <div class="index-card" style="border-left:3px solid var(--warn);"><div class="idx-name">VIX<span class="idx-tooltip">恐慌指数，>30恐慌，<15乐观</span></div><div class="idx-price" id="vix-price">--</div><div class="idx-change" id="vix-change">--</div></div>
+        <div class="index-card" style="border-left:3px solid var(--accent);"><div class="idx-name">美元指数<span class="idx-tooltip">美元强弱影响外资流向</span></div><div class="idx-price" id="dxy-price">--</div><div class="idx-change" id="dxy-change">--</div></div>
       </div>
     </div>
 
@@ -2058,7 +2041,6 @@
           <span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:400;">点击板块查看详情</span>
         </div>
         <div class="sector-score-scroll" style="max-height:420px;overflow-y:auto;border-radius:8px;">
-        <div class="table-scroll-wrap">
         <table class="sector-score-table" id="sector-score-table">
           <thead style="position:sticky;top:0;background:var(--bg-soft);z-index:1;">
             <tr>
@@ -2075,7 +2057,6 @@
             <tr><td colspan="7" class="empty-tip" style="text-align:center;padding:30px 0;">加载中...</td></tr>
           </tbody>
         </table>
-        </div>
         </div>
       </div>
 
